@@ -60,6 +60,26 @@ class AutoDetectTests(unittest.TestCase):
         found=detect.detect_entities(ids)
         self.assertNotIn("pv",found)
 
+    def test_rebinding_room_disables_heating(self):
+        ids = {
+            "sensor.indoor_temperature": state(
+                "sensor.indoor_temperature", unit="°C"
+            )
+        }
+        settings = {
+            "room": "sensor.obsolete_room",
+            "room_verified": True,
+            "write_heat": True,
+            "write_water": True,
+            "test_mode": False,
+        }
+        result = detect.suggest_values(ids, settings, refresh_missing=True)
+        self.assertEqual(result["room"], "sensor.indoor_temperature")
+        self.assertFalse(result["room_verified"])
+        self.assertFalse(result["write_heat"])
+        self.assertFalse(result["write_water"])
+        self.assertTrue(result["test_mode"])
+
     def test_already_good_manual_flags_preserved(self):
         ids={"sensor.p1_meter_power":state("sensor.p1_meter_power")}
         values=detect.suggest_values(ids,{"room_verified":True,"write_heat":False,"test_mode":True},refresh_missing=True)
