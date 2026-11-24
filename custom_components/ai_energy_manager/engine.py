@@ -208,10 +208,11 @@ class Engine(DataUpdateCoordinator):
         cheap = bool(safe and price is not None and price <= cfg["cheap"]
                      and cold is not None and cold < 5)
         mode = cfg.get("energy_mode", "normal")
+        comfort_extra = bool(mode == "comfort" and safe and outdoor is not None and outdoor < 0 and room is not None and room < cfg["normal"] - .5)
         boost = bool(
             safe and cfg["room_verified"] and not nilan_cooling
             and mode not in ("economy", "holiday") and room < cfg["maximum"] - .2
-            and (solar or cheap or predictive_preheat) and outdoor < 15
+            and (solar or cheap or predictive_preheat or comfort_extra) and outdoor < 15
             and timestamp >= memory.get("boost_blocked_until", 0)
         )
         if memory.get("owned_since") is not None and timestamp - memory["owned_since"] >= cfg.get("max_boost_minutes", 120) * 60:
@@ -234,6 +235,8 @@ class Engine(DataUpdateCoordinator):
             reason = "Ferie – ingen ekstra boost"
         elif boost and solar:
             reason = "Soloverskud – ekstra rumvarme kan prioriteres"
+        elif boost and comfort_extra:
+            reason = "Komfortprofil – rumtemperatur under ønsket niveau"
         elif boost and predictive_preheat:
             reason = "Prognose: billig strøm nu før dyrere timer"
         elif boost and cheap:
@@ -262,6 +265,8 @@ class Engine(DataUpdateCoordinator):
             hp_state.attributes.get("temperature") if hp_state else None
         )
         owned = memory.get("owned")
+        if owned is not None and "owned_since" not in memory:
+            memory["owned_since"] = timestamp
         if owned is not None and current_setpoint is not None:
             # Detect human or external intervention; never override it.
             if abs(current_setpoint - owned) > .15:
