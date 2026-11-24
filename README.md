@@ -1,4 +1,4 @@
-# AI Energy Manager 2.1.3 – Nordic Night
+# AI Energy Manager 2.2.0 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
@@ -108,3 +108,26 @@ Gennemgået og rettet efter den tomme opsætningsmenu:
 - Testene omfatter nu også måleenheder, migration, oversættelser, manuel sensorudskiftning og PV-timesummer.
 
 **Begrænsning:** GitHub Actions validerer syntaks og de tests, der er skrevet til dette projekt. Integrationens reelle drift mod din specifikke Home Assistant, Husdata og Nilan er ikke testet her. Hold `test_mode=true`, indtil sensorstatus, P1-fortegn og IVT-setpunkter er verificeret på anlægget. Reboot efter HACS-opdatering, og opdater siden med Ctrl+F5.
+
+
+## Version 2.2.0: samordnet energi- og komfortplan
+
+En ny **rådgivende koordinering** kombinerer elpriser, vejr/vind, eksisterende Forecast.Solar-PV-prognose, rumtemperatur, varmtvandsbehov, valgfri hjemme-/ude-status og valgfri batteristand. Den udvider tidslinjens råd, men udfører aldrig batteri-, ventilations- eller ekstra varmtvandskommandoer.
+
+**Indstillinger / Auto Detect:** De nye felter er valgfrie:
+- `presence_entity`: person/device_tracker eller binary_sensor/input_boolean, hvor **on betyder hjemme** og **off betyder ude**. Ukendt tilstedeværelse forbliver *ukendt*. En status nu er ikke en prognose for, hvornår nogen kommer hjem.
+- `battery_soc_entity`: batteriets opladningsgrad i procent (0–100).
+- `battery_power_entity`: valgfri batterieffekt i W/kW. Positivt/negativt fortegn fortolkes ikke som ind-/udladning uden verificering.
+- `house_load_entity`: målt forbrug i huset i W/kW. Et eksempel kan være `sensor.husets_liveforbrug` hvis den findes.
+- `assumed_base_load_w`: frivilligt estimat for grundlast (W). Bruges **kun** til illustrative fremtidige overskudsestimater, når husforbrug ikke kan måles. Standard nul betyder ukendt.
+- `solar_overheat_margin`: temperaturmargin (°C), som sammen med høj prognosticeret PV og varm rumføler spærrer **ekstra** boost.
+
+**Varmtvandsbehov:** Mulige store temperaturfald i toppen af varmtvandsbeholderen tælles pr. lokal time over de seneste syv dage. Temperaturfald kan også skyldes varmetab eller ændringer i tanken; det er ikke registreret vandforbrug. En lav tanktemperatur medfører anbefalingen **udsæt ikke alene for billig el**. Planlagt ekstravarmtvand er ikke aktiveret, før Rego/Husdata-styring er verificeret.
+
+**PV og batteri:** Timevis solproduktion er en **prognose**, ikke sikker egenforbrugt energi. Ved lavt batteriniveau viser tidslinjen forsigtige forslag om opladning frem for fleksibelt boost. Batteriet styres ikke af denne integration. Der gættes ikke en batteristand, hvis sensoren mangler.
+
+**Vejr og komfort:** Stærk vind og lave temperaturer giver varmetabsadvarsler. Når rumtemperaturen allerede er tæt på målet og der forventes høj PV-produktion, foreslås det at undgå unødvendig forvarmning; en ekstra sikkerhedsregel kan blokere boost. Den bygger ikke på måling af faktisk solindfald gennem vinduerne.
+
+**Sikkerhed:** Kun eksisterende IVT-rumsetpunktstyring kan skrive til hardware, og kun efter bekræftelse af rumføler, aktiveret skriveadgang og deaktiveret testtilstand. Øvrig koordinering er rådgivende og ændrer ikke kompressorstyringen direkte. Start med `test_mode=true`.
+
+**Begrænsninger:** Dette er ikke en gennemført optimering af fremtidig tilstedeværelse, batteriafladning eller termisk COP. Hverken batteriets BMS, PV-inverter, Nilan, EV-lader eller ekstra varmtvandsfunktion aktiveres af de nye råd.
