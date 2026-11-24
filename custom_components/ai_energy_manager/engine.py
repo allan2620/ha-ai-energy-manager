@@ -343,6 +343,11 @@ class Engine(DataUpdateCoordinator):
             if complete and current_import_kw is not None else None
         )
 
+        # Advisory DHW slot: select the lowest known price in the next 24h.
+        # Do not schedule a device command; timer semantics are not verified.
+        slots = [(h["price"], h["time"]) for h in hours24 if h["price"] is not None]
+        dhw_slot = min(slots, key=lambda item: item[0])[1] if slots and water is not None and water < cfg["water_min"] else None
+
         # Do not dispatch Husdata extra DHW commands automatically until the
         # integration's special duration semantics have been verified on device.
         dhw_suggestion = bool(
@@ -411,4 +416,5 @@ class Engine(DataUpdateCoordinator):
             "cop": cop,
             "budget_24": budget_24,
             "predictive_preheat": predictive_preheat,
+            "dhw_slot": dhw_slot,
         }
