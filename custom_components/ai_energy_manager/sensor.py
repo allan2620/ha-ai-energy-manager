@@ -1,16 +1,74 @@
+"""AI Energy Manager 2.0: self-contained diagnostic and forecast sensors."""
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
-async def async_setup_entry(hass,entry,async_add_entities):
-    engine=hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([Metric(engine,entry.entry_id,k,n,u) for k,n,u in [("status","Status",None),("export","Eksport","W"),("pv","Solproduktion","W"),("hp_power","IVT effekt","W"),("target","Anbefalet rumsetpunkt","°C"),("price","Elpris","DKK/kWh"),("room","Rumtemperatur","°C"),("water","Varmtvand","°C"),("forecast_low","Prognose minimum","°C"),("cooling_rate","Observeret afkøling","°C/h"),("nilan","Nilan status",None)]])
-class Metric(CoordinatorEntity,SensorEntity):
-    _attr_has_entity_name=True
-    def __init__(self,engine,eid,key,name,unit):
-        super().__init__(engine); self.key=key; self._attr_name=name; self._attr_unique_id=eid+key; self._attr_native_unit_of_measurement=unit
-        self._attr_device_info={"identifiers":{(DOMAIN,eid)},"name":"AI Energy Manager","manufacturer":"Local Energy"}
+
+METRICS = [
+    ("status","Status",None), ("export","Eksport","W"),
+    ("pv","Solproduktion","W"), ("hp_power","IVT effekt","W"),
+    ("target","Anbefalet rumsetpunkt","°C"),
+    ("price","Elpris","DKK/kWh"), ("room","Rumtemperatur","°C"),
+    ("water","Varmtvand","°C"), ("forecast_low","Prognose minimum","°C"),
+    ("cooling_rate","Observeret afkøling","°C/h"),
+    ("nilan","Nilan status",None),
+    ("price_hours","Prisprognose timer","h"),
+    ("weather_hours","Vejrprognose timer","h"),
+    ("suggested_heat_hours","Foreslåede varmetimer","h"),
+    ("mode","Energiprofil",None),
+    ("plan_note","Prognosebeskrivelse",None),
+    ("test_mode","Testtilstand",None),
+    ("cooldown","Kompressor reguleringspause",None),
+    ("dhw_suggestion","Anbefaler ekstra varmtvand",None),
+    ("nilan_cooling","Nilan køling aktiv",None),
+    ("plan","Plan næste 48 timer",None),
+]
+
+async def async_setup_entry(hass, entry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([
+        Metric(coordinator, entry.entry_id, key, name, unit)
+        for key, name, unit in METRICS
+    ])
+
+class Metric(CoordinatorEntity, SensorEntity):
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator, entry_id, key, name, unit):
+        super().__init__(coordinator)
+        self.key = key
+        self._attr_name = name
+        self._attr_unique_id = entry_id + key
+        self._attr_native_unit_of_measurement = unit
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry_id)},
+            "name": "AI Energy Manager", "manufacturer": "Local Energy",
+        }
+
     @property
-    def native_value(self): return self.coordinator.data.get(self.key)
+    def native_value(self):
+        data = self.coordinator.data or {}
+        if self.key == "plan":
+            return f"{data.get('price_hours', 0)}/48 priser"
+        return data.get(self.key)
+
     @property
     def extra_state_attributes(self):
-        return {"beslutninger":self.coordinator.data.get("log"),"manuel_pause":self.coordinator.data.get("manual_hold"),"fejl":self.coordinator.data.get("faults",[])} if self.key=="status" else None
+        data = self.coordinator.data or {}
+        if self.key == "status":
+            return {
+                "beslutninger": data.get("log", []),
+                "manuel_pause": data.get("manual_hold", False),
+                "fejl": data.get("faults", []),
+                "testtilstand": data.get("test_mode", True),
+                "kompressor_pause": data.get("cooldown", False),
+                "plan_timer_med_pris": data.get("price_hours", 0),
+                "plan_timer_med_vejr": data.get("weather_hours", 0),
+            }
+        if self.key == "plan":
+            return {
+                "plan": data.get("plan", []),
+                "pristimer": data.get("price_hours", 0),
+                "vejrtimer": data.get("weather_hours", 0),
+                "bemærkning": data.get("plan_note"),
+            }
+        return None
