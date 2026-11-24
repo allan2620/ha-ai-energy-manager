@@ -14,11 +14,18 @@ class AIEnergyPanel extends HTMLElement {
     this.graphLoading = false;
     this.graphError = "";
     this._hass = null;
+    this.editMode=false;
+    this.editorError="";
+    this.layout=null;
+    this.layoutLoadStarted=false;
+    this.layoutSaving=false;
     this._renderQueued = false;
   }
 
   set hass(v) {
     this._hass = v;
+    if(!this.layoutLoadStarted){this.layoutLoadStarted=true;this.loadLayout();}
+    if(this.editMode)return;
     if (!this._renderQueued) {
       this._renderQueued = true;
       requestAnimationFrame(() => {
@@ -274,17 +281,142 @@ class AIEnergyPanel extends HTMLElement {
       graph+'<h3>Sensorattributter</h3><div class="history-attrs">'+attrs+'</div></div>';
   }
 
+
+  defaultLayout(){
+    return {title:"AI Energy Manager",accent:"nordic",
+      groups:{kpi:["solar","grid","hp","nilan","price","weather"],middle:["ivt","ventilation"],bottom:["production","forecast","prices","log"]},
+      hidden:[],labels:{},sensors:{}};
+  }
+  async loadLayout(){
+    try{
+      const data=await this._hass.callApi("GET","ai_energy_manager/dashboard");
+      this.layout=data?.layout||this.defaultLayout();
+    }catch(e){this.layout=this.defaultLayout();this.editorError="Kunne ikke hente gemt layout: "+String(e?.message||e);}
+    if(!this.editMode)this.render();
+  }
+  getLayout(){return this.layout||this.defaultLayout();}
+  getKpiSensor(key,fallback){return this.getLayout().sensors?.[key]||fallback;}
+  editorGroups(){return {
+    kpi:[["solar","Solproduktion"],["grid","Elnet"],["hp","IVT varmepumpe"],["nilan","Nilan ventilation"],["price","Elpris"],["weather","Udetemperatur"]],
+    middle:[["ivt","IVT + varmtvand"],["ventilation","Nilan"]],
+    bottom:[["production","Sol & strøm"],["forecast","Vejrudsigt"],["prices","Elpris & plan"],["log","Hvad sker der nu?"]]
+  };}
+  editorHtml(){
+    if(!this.editMode)return "";
+    const layout=this.getLayout();
+    const groups=this.editorGroups();
+    const labels=Object.fromEntries(Object.values(groups).flat().map(([id,text])=>[id,text]));
+    const sections=Object.entries(layout.groups).map(([group,ids])=>{
+      const title={kpi:"Øverste målefelter",middle:"Midterste felter",bottom:"Nederste felter"}[group];
+      return '<section class="editor-section"><h3>'+title+'</h3>'+
+        ids.map((id,index)=>{
+          const hidden=layout.hidden.includes(id);
+          const label=layout.labels[id]||labels[id];
+          const sensor=group==="kpi"?'<label class="editor-sensor">Sensor:<select data-sensor="'+id+'">'+
+            '<option value="">Standard</option>'+Object.keys(this._hass.states||{}).filter(x=>/^(sensor|binary_sensor|weather|climate|number|switch)\./.test(x)).sort().map(entity=>
+            '<option value="'+this.esc(entity)+'" '+(layout.sensors[id]===entity?'selected':'')+'>'+this.esc(entity)+'</option>').join("")+'</select></label>':"";
+          return '<div class="editor-item"><div class="editor-top"><b>'+this.esc(labels[id])+'</b>'+
+            '<div class="editor-actions"><button type="button" data-move="'+id+'" data-group="'+group+'" data-direction="-1" '+(index===0?'disabled':'')+' aria-label="Flyt op">↑</button>'+
+            '<button type="button" data-move="'+id+'" data-group="'+group+'" data-direction="1" '+(index===ids.length-1?'disabled':'')+' aria-label="Flyt ned">↓</button></div></div>'+
+            '<label class="editor-checkbox"><input type="checkbox" data-visible="'+id+'" '+(!hidden?'checked':'')+'/> Vis felt</label>'+
+            '<label>Visningsnavn:<input data-label="'+id+'" maxlength="32" value="'+this.esc(label)+'"/></label>'+
+            sensor+'</div>';
+        }).join("")+'</section>';
+    }).join("");
+    return '<div class="editor-overlay" id="editor-overlay"><div class="editor-dialog" role="dialog" aria-modal="true" aria-label="Rediger dashboard">'+
+      '<header class="editor-header"><h2><ha-icon icon="mdi:pencil"></ha-icon> Rediger dashboard</h2><button type="button" id="editor-close">✕</button></header>'+
+      '<p>Flyt felter med pilene, vælg sensorer og skjul felter. Ændringer påvirker kun visningen – ikke IVT- eller Nilan-styringen.</p>'+
+      (this.editorError?'<div class="editor-error">'+this.esc(this.editorError)+'</div>':'')+
+      '<div class="editor-fields"><label>Dashboardtitel:<input id="editor-title" maxlength="60" value="'+this.esc(layout.title)+'"/></label>'+
+      '<label>Farvetema:<select id="editor-accent">'+
+      [["nordic","Nordic Night"],["forest","Nordic Green"],["arctic","Arctic Blue"],["violet","Nordic Violet"]].map(([value,name])=>
+        '<option value="'+value+'" '+(layout.accent===value?'selected':'')+'>'+name+'</option>').join("")+'</select></label></div>'+
+      sections+'<footer class="editor-footer"><button id="editor-reset" type="button">Nulstil layout</button>'+
+      '<span></span><button type="button" id="editor-cancel">Annuller</button>'+
+      '<button type="button" id="editor-save" '+(this.layoutSaving?'disabled':'')+'>'+(this.layoutSaving?'Gemmer…':'Gem ændringer')+'</button></footer></div></div>';
+  }
+  bindEditor(){
+    if(!this.editMode)return;
+    const q=x=>this.shadowRoot.querySelector(x);
+    const close=()=>{this.editMode=false;this.editorError="";this.loadLayout();this.render();};
+    q("#editor-close")?.addEventListener("click",close);
+    q("#editor-cancel")?.addEventListener("click",close);
+    q("#editor-overlay")?.addEventListener("click",e=>{if(e.target.id==="editor-overlay")close();});
+    q("#editor-title")?.addEventListener("change",e=>{this.layout.title=e.target.value;});
+    q("#editor-accent")?.addEventListener("change",e=>{this.layout.accent=e.target.value;});
+    this.shadowRoot.querySelectorAll("[data-label]").forEach(el=>el.addEventListener("change",()=>{
+      this.layout.labels[el.dataset.label]=el.value.trim().slice(0,32);
+    }));
+    this.shadowRoot.querySelectorAll("[data-visible]").forEach(el=>el.addEventListener("change",()=>{
+      const key=el.dataset.visible;
+      this.layout.hidden=this.layout.hidden.filter(x=>x!==key);
+      if(!el.checked)this.layout.hidden.push(key);
+    }));
+    this.shadowRoot.querySelectorAll("[data-sensor]").forEach(el=>el.addEventListener("change",()=>{
+      const id=el.dataset.sensor;
+      if(el.value)this.layout.sensors[id]=el.value;
+      else delete this.layout.sensors[id];
+    }));
+    this.shadowRoot.querySelectorAll("[data-move]").forEach(el=>el.addEventListener("click",()=>{
+      const arr=this.layout.groups[el.dataset.group],i=arr.indexOf(el.dataset.move),j=i+Number(el.dataset.direction);
+      if(i<0||j<0||j>=arr.length)return;
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+      this.render();
+    }));
+    q("#editor-reset")?.addEventListener("click",()=>{this.layout=this.defaultLayout();this.editorError="";this.render();});
+    q("#editor-save")?.addEventListener("click",async()=>{
+      this.layout.title=q("#editor-title")?.value?.trim()||"AI Energy Manager";
+      this.layout.accent=q("#editor-accent")?.value||"nordic";
+      this.layoutSaving=true;this.editorError="";this.render();
+      try{
+        const result=await this._hass.callApi("POST","ai_energy_manager/dashboard",{layout:this.layout});
+        this.layout=result.layout;
+        this.editMode=false;
+      }catch(e){this.editorError="Kunne ikke gemme dashboardet: "+String(e?.message||e);}
+      this.layoutSaving=false;this.render();
+    });
+  }
+  applyLayout(){
+    const layout=this.getLayout();
+    const groups=[
+      [".topbar .stat","kpi"],
+      [".mid .panel","middle"],
+      [".bottom .panel","bottom"]
+    ];
+    const originals=this.editorGroups();
+    groups.forEach(([selector,name])=>{
+      this.shadowRoot.querySelectorAll(selector).forEach((el,i)=>{
+        const id=originals[name][i]?.[0];
+        if(!id)return;
+        const order=layout.groups[name].indexOf(id);
+        el.style.order=String(order<0?i:order);
+        el.style.display=layout.hidden.includes(id)?"none":"";
+        const text=layout.labels[id];
+        if(text) {
+          const title=el.querySelector(name==="kpi"?".s-title":"h2");
+          if(title){
+            if(name==="kpi")title.textContent=text;
+            else{
+              for(const node of [...title.childNodes])if(node.nodeType===3)node.textContent=text;
+            }
+          }
+        }
+      });
+    });
+    this.shadowRoot.querySelector(".app")?.setAttribute("data-accent",layout.accent);
+  }
+
   render() {
     if (!this._hass) return;
     const demo = this.demo;
     const statusEntity = this.liveStatusSensor;
     const liveStatus = this.st(statusEntity);
 
-    const pv = demo ? 2900 : this.n("sensor.danfoss_tlx_pro_241202n272_grid_power_total");
-    const grid = demo ? 1400 : this.n("sensor.p1_meter_power");
-    const hpPower = demo ? 2100 : ((v) => v === null ? null : v * 1000)(this.n("sensor.hp_power_consumption"));
-    const price = demo ? 2.70 : this.n("sensor.energi_data_service");
-    const outdoor = demo ? -0.9 : (this.n("sensor.hp_outdoor") ?? this.a("weather.forecast_hjem", "temperature"));
+    const pv = demo ? 2900 : this.n(this.getKpiSensor("solar","sensor.danfoss_tlx_pro_241202n272_grid_power_total"));
+    const grid = demo ? 1400 : this.n(this.getKpiSensor("grid","sensor.p1_meter_power"));
+    const hpPower = demo ? 2100 : ((v) => v === null ? null : v * 1000)(this.n(this.getKpiSensor("hp","sensor.hp_power_consumption")));
+    const price = demo ? 2.70 : this.n(this.getKpiSensor("price","sensor.energi_data_service"));
+    const outdoor = demo ? -0.9 : (this.n(this.getKpiSensor("weather","sensor.hp_outdoor")) ?? this.a("weather.forecast_hjem", "temperature"));
     const room = demo ? 21.2 : this.n("sensor.boiler_room_nilan_user_panel_temperature_t15");
     const setpoint = demo ? 21.5 : this.a("climate.hp_room_temp_setpoint", "temperature");
     const flow = demo ? 33.4 : this.n("sensor.hp_heat_carrier_forwrd");
@@ -292,7 +424,7 @@ class AIEnergyPanel extends HTMLElement {
     const waterTop = demo ? 49.0 : this.n("sensor.hp_warm_water_1_top");
     const waterTarget = demo ? 53.0 : this.a("climate.hp_warm_water_stop_temp", "temperature");
     const extraHotWater = demo ? 60 : this.a("climate.hp_extra_warm_water", "temperature");
-    const nilanState = demo ? "Varme" : (this.txt("climate.boiler_room_nilan_hvac") || "Ukendt");
+    const nilanState = demo ? "Varme" : (this.txt(this.getKpiSensor("nilan","climate.boiler_room_nilan_hvac")) || "Ukendt");
     const nilanFan = demo ? "2" : (this.a("climate.boiler_room_nilan_hvac", "fan_mode") ?? "—");
     const humidity = demo ? 44 : this.n("sensor.boiler_room_nilan_humidity");
     const t3 = demo ? 18.0 : this.n("sensor.boiler_room_nilan_return_air_temperature_t3");
@@ -437,6 +569,32 @@ class AIEnergyPanel extends HTMLElement {
         .graph-message{padding:24px;background:#102438;border:1px solid #3c5974;border-radius:12px;color:#c3d8eb}
         .graph-events,.history-attrs{max-height:280px;overflow:auto}
         .history-attrs .detail-line strong{max-width:65%;overflow-wrap:anywhere;text-align:right;font-size:12px}
+        .app[data-accent="forest"]{--accent-editor:#93d39a}
+        .app[data-accent="arctic"]{--accent-editor:#72d5fb}
+        .app[data-accent="violet"]{--accent-editor:#c5a1e8}
+        .app[data-accent="nordic"]{--accent-editor:#88c0d0}
+        .app[data-accent] .panel,.app[data-accent] .stat{border-color:var(--accent-editor,#88c0d0)}
+        .editor-overlay{position:fixed;inset:0;z-index:4000;background:rgba(2,8,18,.83);display:flex;justify-content:center;align-items:center;padding:15px}
+        .editor-dialog{width:min(850px,100%);max-height:92vh;overflow:auto;background:#12263a;border:1px solid #547a93;border-radius:18px;padding:20px;color:#edf5ff}
+        .editor-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+        .editor-header h2{display:flex;align-items:center;gap:8px;font-size:22px}
+        .editor-header button,.editor-footer button,.editor-actions button{background:#27445a;border:1px solid #4e7892;color:#e7f5ff;border-radius:9px;padding:8px 12px;cursor:pointer}
+        .editor-header button:disabled,.editor-footer button:disabled,.editor-actions button:disabled{opacity:.4;cursor:default}
+        .editor-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+        .editor-fields label,.editor-item label{display:flex;flex-direction:column;gap:4px;color:#bed2e5;font-size:13px}
+        .editor-item input,.editor-item select,.editor-fields input,.editor-fields select{background:#0d1d2c;border:1px solid #4d6e89;border-radius:8px;padding:8px;color:#eaf6ff;min-width:0;width:100%}
+        .editor-section{border-top:1px solid #43617c;padding-top:14px;margin-top:12px}
+        .editor-section h3{margin:0 0 10px}
+        .editor-item{padding:10px;margin-bottom:10px;border-radius:11px;background:#1c3448;display:grid;grid-template-columns:1fr 1fr;gap:9px}
+        .editor-top{display:flex;justify-content:space-between;gap:10px;grid-column:1/-1;align-items:center}
+        .editor-actions{display:flex;gap:6px}
+        .editor-checkbox{display:flex!important;align-items:center;flex-direction:row!important}
+        .editor-checkbox input{width:auto}
+        .editor-sensor{grid-column:1/-1}
+        .editor-footer{position:sticky;bottom:-20px;background:#12263a;display:flex;gap:10px;align-items:center;padding:14px 0;border-top:1px solid #45627d}
+        .editor-footer span{flex:1}
+        .editor-error{background:#5b3228;color:#ffddc3;padding:10px;border-radius:9px}
+        @media(max-width:600px){.editor-fields,.editor-item{grid-template-columns:1fr}.editor-footer{flex-wrap:wrap}}
         .mobile-head{display:none}
         @media (max-width: 1550px){.topbar{grid-template-columns:repeat(3,1fr)}.bottom{grid-template-columns:1fr 1fr}.price-area{grid-template-columns:1fr}.flow-layout{grid-template-columns:230px 1fr 260px}.title-block h1{font-size:42px}.title-block p{font-size:18px}}
         @media (max-width: 1080px){.app{grid-template-columns:1fr}.side{display:none}.mobile-head{display:inline-flex}.flow-layout,.mid,.bottom,.panel-grid,.nilan-side{grid-template-columns:1fr}.topbar{grid-template-columns:repeat(2,1fr)}.content{padding:14px}.title-block h1{font-size:34px}.title-block p{font-size:16px}.header-icon{width:54px;height:54px}}
@@ -447,8 +605,9 @@ class AIEnergyPanel extends HTMLElement {
           <div class="header">
             <button class="btn mobile-head" id="menu-btn"><ha-icon icon="mdi:menu"></ha-icon></button>
             <div class="header-icon"><ha-icon icon="mdi:home-outline"></ha-icon></div>
-            <div class="title-block"><h1>AI Energy Manager</h1><p>Nordic Night • ${demo ? 'Simuleret oversigt' : 'Live overblik'}</p></div>
+            <div class="title-block"><h1>${this.esc(this.getLayout().title)}</h1><p>Nordic Night • ${demo ? 'Simuleret oversigt' : 'Live overblik'}</p></div>
             <div class="header-right">
+              <button class="btn" id="edit-dashboard"><ha-icon icon="mdi:pencil"></ha-icon> Rediger dashboard</button>
               <button class="btn ${demo ? 'active' : ''}" id="simulate-btn"><ha-icon icon="mdi:play-circle-outline"></ha-icon>${demo ? 'Afslut simulation' : 'Simulér drift'}</button>
             </div>
           </div>
@@ -554,6 +713,7 @@ class AIEnergyPanel extends HTMLElement {
             </section>
           </div>
           ${this.detailsHtml()}
+          ${this.editorHtml()}
           <div class="footer">${demo ? 'Simuleret dashboard – eksempeldata' : faults.length ? 'Live dashboard – nogle sensorer mangler' : 'Live dashboard – aktuelle data'}</div>
         </main>
       </div>`;
@@ -584,6 +744,14 @@ class AIEnergyPanel extends HTMLElement {
     this.shadowRoot.querySelector("#graph-back")?.addEventListener("click",()=>{this.graphEntity=null;this.graphHistory=[];this.render();});
     this.shadowRoot.querySelectorAll("[data-graph-hours]").forEach(btn=>btn.addEventListener("click",()=>this.showMoreInfo(this.graphEntity,Number(btn.dataset.graphHours))));
 
+    this.applyLayout();
+    this.bindEditor();
+    this.shadowRoot.getElementById("edit-dashboard")?.addEventListener("click",()=>{
+      this.editMode=true;
+      this.layout=JSON.parse(JSON.stringify(this.getLayout()));
+      this.editorError="";
+      this.render();
+    });
     this.shadowRoot.getElementById("simulate-btn")?.addEventListener("click", () => {
       this.demo = !this.demo;
       this.render();
