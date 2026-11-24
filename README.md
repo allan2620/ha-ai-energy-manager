@@ -1,6 +1,6 @@
 # AI Energy Manager – Nordic Night
 
-**Status: Eksperimentel prototype (v1.1.0). Ikke testet på en faktisk Home Assistant-installation.**
+**Status: Eksperimentel prototype (v1.2.0). Ikke testet på en faktisk Home Assistant-installation.**
 
 En lokal Home Assistant Custom Integration til at overvåge og koordinere IVT Greenline C11 / Rego 637 (Husdata), Nilan, Danfoss-solceller, P1-måler, Energi Data Service og vejrdata. Beslutningsmotoren er **regelbaseret** med simpel observation af afkølingsrate – **ikke en trænet AI-model**.
 
@@ -15,7 +15,7 @@ En lokal Home Assistant Custom Integration til at overvåge og koordinere IVT Gr
 
 ## Automatisk sidepanel
 
-Når integrationen er konfigureret, registrerer den automatisk sidepanelet **AI Energy** på adressen `/ai-energy`. Panelet har Nordic Night-design, live energimålinger, IVT, Nilan, vejr, beslutningslog og en genvej til indstillinger. Du behøver ikke manuelt at oprette et Lovelace-dashboard. Genstart Home Assistant efter opdateringen.
+Når integrationen er konfigureret, registrerer den automatisk sidepanelet **AI Energy** på adressen `/ai-energy`. Panelet er nu **én samlet Nordic Night-side** med sol/elmåler/IVT/Nilan/elpris/vejr/varmtvand/beslutningslog, samt en grafisk illustration af energiflowet. Knappen **Simulér drift** skifter til tydeligt markerede eksempeldata. Den ændrer kun visningen i din browser, sender ingen kommandoer og ændrer ikke integrationens faktiske drift. Genindlæs siden for at vende tilbage til livevisning. Diagrammets pile viser forbindelser, ikke præcist målt fordeling til de enkelte apparater. Du behøver ikke manuelt at oprette et Lovelace-dashboard. Genstart Home Assistant efter opdateringen.
 
 ## Valgfrit Lovelace-dashboard og tema
 
