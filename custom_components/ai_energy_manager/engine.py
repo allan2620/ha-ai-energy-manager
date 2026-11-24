@@ -359,6 +359,9 @@ class Engine(DataUpdateCoordinator):
         can_write = bool(
             cfg["room_verified"] and cfg["write_heat"]
             and not cfg.get("test_mode", True)
+            and alarm is not None and alarm.state == "off"
+            and compressor is not None and compressor.state in ("on", "off")
+            and current_setpoint is not None
         )
         if owned is not None and not boost and can_write:
             baseline = as_float(memory.get("baseline"))
