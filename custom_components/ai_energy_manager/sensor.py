@@ -21,6 +21,9 @@ METRICS = [
     ("dhw_suggestion","Anbefaler ekstra varmtvand",None),
     ("nilan_cooling","Nilan køling aktiv",None),
     ("plan","Plan næste 48 timer",None),
+    ("cop","COP målt",None),
+    ("budget_24","Budget 24 timer ved konstant belastning","DKK"),
+    ("predictive_preheat","Forvarmning før dyr strøm",None),
 ]
 
 async def async_setup_entry(hass, entry, async_add_entities):
