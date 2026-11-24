@@ -58,6 +58,17 @@ class SolarForecastTests(unittest.TestCase):
         self.assertEqual(result[nine_utc]["pv_power_w"], 1200)
         self.assertEqual(result[nine_utc]["pv_energy_kwh"], 1.1)
 
+    def test_remaining_today_prorates_current_hour(self):
+        hour = self.now.replace(minute=0)
+        forecast = {
+            hour: {"pv_power_w": 2000, "pv_energy_kwh": 2.0},
+            hour + timedelta(hours=1): {
+                "pv_power_w": 1000, "pv_energy_kwh": 1.0
+            },
+        }
+        result = pv.pv_summary(forecast, self.now, timezone.utc)
+        self.assertEqual(result["pv_today_remaining_kwh"], 2.0)
+
     def test_missing_forecast_not_fabricated(self):
         self.assertEqual(pv.parse_pv_forecast({}, self.now), {})
         self.assertEqual(pv.parse_pv_forecast({"watts": {"invalid": 1}}, self.now), {})
