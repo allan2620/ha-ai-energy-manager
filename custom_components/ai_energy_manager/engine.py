@@ -112,6 +112,8 @@ class Engine(DataUpdateCoordinator):
             and 0 <= cfg["boost"] <= 1
             and cfg["start_w"] > cfg["stop_w"] >= 0
             and 15 <= cfg.get("min_boost_minutes", 30) <= 240
+            and 30 <= cfg.get("max_boost_minutes", 120) <= 360
+            and 0.1 <= cfg.get("future_price_jump", 0.8) <= 5
         )
         if not limits_ok:
             faults.append("Ugyldige sikkerhedsgrænser i indstillinger")
@@ -192,14 +194,31 @@ class Engine(DataUpdateCoordinator):
             )
         )
         memory["solar"] = solar
+        future_prices = [
+            prices.get(now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=h))
+            for h in range(1, 7)
+        ]
+        known_future = [p for p in future_prices if p is not None]
+        predictive_preheat = bool(
+            safe and price is not None and price <= cfg["cheap"]
+            and len(known_future) >= 3
+            and max(known_future) - price >= cfg.get("future_price_jump", 0.8)
+            and outdoor is not None and outdoor < 10
+        )
         cheap = bool(safe and price is not None and price <= cfg["cheap"]
                      and cold is not None and cold < 5)
         mode = cfg.get("energy_mode", "normal")
         boost = bool(
             safe and cfg["room_verified"] and not nilan_cooling
             and mode not in ("economy", "holiday") and room < cfg["maximum"] - .2
-            and (solar or cheap) and outdoor < 15
+            and (solar or cheap or predictive_preheat) and outdoor < 15
+            and timestamp >= memory.get("boost_blocked_until", 0)
         )
+        if memory.get("owned_since") is not None and timestamp - memory["owned_since"] >= cfg.get("max_boost_minutes", 120) * 60:
+            boost = False
+            memory["boost_blocked_until"] = timestamp + 3600
+            logs.append("Maksimal varighed for IVT boost nået; en times pause")
+            memory.pop("owned_since", None)
         target = round(
             min(cfg["maximum"], cfg["normal"] + cfg["boost"]) if boost
             else cfg["normal"], 1
@@ -215,6 +234,8 @@ class Engine(DataUpdateCoordinator):
             reason = "Ferie – ingen ekstra boost"
         elif boost and solar:
             reason = "Soloverskud – ekstra rumvarme kan prioriteres"
+        elif boost and predictive_preheat:
+            reason = "Prognose: billig strøm nu før dyrere timer"
         elif boost and cheap:
             reason = "Billig el – ekstra rumvarme kan prioriteres"
         else:
@@ -245,6 +266,7 @@ class Engine(DataUpdateCoordinator):
             # Detect human or external intervention; never override it.
             if abs(current_setpoint - owned) > .15:
                 memory.pop("owned", None)
+                memory.pop("owned_since", None)
                 memory["manual_hold"] = True
                 logs.append("Manuel ændring registreret; automatisk rumboost sat på pause")
                 owned = None
@@ -261,6 +283,7 @@ class Engine(DataUpdateCoordinator):
                 try:
                     await self.command("hp", baseline)
                     memory.pop("owned", None)
+                    memory.pop("owned_since", None)
                     logs.append("Tidligere IVT-solboost gendannet til normal setpunkt")
                 except Exception as exc:
                     logs.append("Kunne ikke gendanne IVT rumsetpunkt: " + str(exc)[:100])
@@ -273,6 +296,7 @@ class Engine(DataUpdateCoordinator):
                 await self.command("hp", target)
                 memory["baseline"] = current_setpoint
                 memory["owned"] = target
+                memory["owned_since"] = timestamp
                 logs.append(f"IVT rumsetpunkt hævet til {target} °C")
             except Exception as exc:
                 logs.append("IVT boost mislykkedes: " + str(exc)[:100])
