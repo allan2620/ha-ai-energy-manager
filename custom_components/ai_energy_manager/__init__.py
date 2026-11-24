@@ -38,7 +38,7 @@ async def async_setup_entry(hass, entry):
     engine = Engine(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = engine
     await engine.async_config_entry_first_refresh()
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "select"])
     # The first refresh may run before P1, Husdata, Nilan and price entities
     # have published their initial states. Re-evaluate after HA is fully started.
     if hass.state != CoreState.running:
