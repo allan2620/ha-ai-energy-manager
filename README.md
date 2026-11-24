@@ -40,3 +40,16 @@ Tilføj først en funktion, der ændrer hardware, efter verificering på anlægg
 
 ## En-sides dashboard v1.3.0
 Nordic Night-dashboardet indeholder et samlet overblik over IVT, Nilan, solproduktion, elpris, vejr, varmtvand og beslutningslog. Knappen **Simulér drift** viser fiktive eksempeldata uden at skrive til nogen Home Assistant-enheder. Husk at bekræfte sensorernes entity-ID'er og fortegnet for P1-måleren. Temperaturgrafen er en illustration, ikke historisk måling. Nilan bliver overvåget; ventilationshastigheden reguleres ikke automatisk.
+
+
+## Klikbare detaljer – v1.4.0
+Klik på statusfelterne, energiflowets enheder eller de større kort for at åbne en lokal detaljevisning med alle relevante sensorværdier. Brug knappen **Vis graf og data** ved en sensor for at åbne Home Assistants indbyggede historik og attributter.
+
+- Solproduktion: Danfoss-strenge og dagens produktion
+- Elnet: P1-effekt, faseværdier, import og eksport
+- IVT: kompressor, varme, fremløb, retur og alarm
+- Varmtvand: temperaturer, stoptemperatur og ekstra varmtvand
+- Nilan: T3, T7, T15, ventilation og varmegenvinding
+- Elpriser, vejr og AI-beslutningslog
+
+Når **Simulér drift** er valgt, er oversigten simuleret, men detaljevinduets sensordata er stadig de rigtige Home Assistant-data. Der sendes ingen styringskommandoer fra klikfunktionerne.
