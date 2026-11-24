@@ -49,7 +49,10 @@ class Metric(CoordinatorEntity, SensorEntity):
         data = self.coordinator.data or {}
         if self.key == "plan":
             return f"{data.get('price_hours', 0)}/48 priser"
-        return data.get(self.key)
+        value = data.get(self.key)
+        if isinstance(value, bool):
+            return "Til" if value else "Fra"
+        return value
 
     @property
     def extra_state_attributes(self):
@@ -61,6 +64,8 @@ class Metric(CoordinatorEntity, SensorEntity):
                 "fejl": data.get("faults", []),
                 "testtilstand": data.get("test_mode", True),
                 "kompressor_pause": data.get("cooldown", False),
+                "energiprofil": data.get("mode", "normal"),
+                "ekstra_varmtvand_foreslået": data.get("dhw_suggestion", False),
                 "plan_timer_med_pris": data.get("price_hours", 0),
                 "plan_timer_med_vejr": data.get("weather_hours", 0),
             }
