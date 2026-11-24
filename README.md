@@ -1,80 +1,61 @@
-# AI Energy Manager – Nordic Night
+# AI Energy Manager 2.0 – Nordic Night
 
-**Status: Eksperimentel prototype (v1.3.0). Ikke testet på en faktisk Home Assistant-installation.**
+**En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
-En lokal Home Assistant Custom Integration til at overvåge og koordinere IVT Greenline C11 / Rego 637 (Husdata), Nilan, Danfoss-solceller, P1-måler, Energi Data Service og vejrdata. Beslutningsmotoren er **regelbaseret** med simpel observation af afkølingsrate – **ikke en trænet AI-model**.
+## Tilsluttede anlæg
+- IVT Greenline C11 / Rego 637 via Husdata: kompressor, fremløb, returløb, rumsetpunkt, varmtvand og alarm.
+- Nilan ventilation: klima, fugt, varmegenvinding og temperaturer. Automatisk ændring af ventilatorhastigheden er **ikke** implementeret.
+- Danfoss TLX-solceller, P1-elmåler og Energi Data Service (DK1/N1).
+- `weather.forecast_hjem` med officiel `weather.get_forecasts`-timeservice, hvis tilgængelig.
 
-## Installation
+## Installation via HACS
+1. Tilføj `https://github.com/allan2620/ha-ai-energy-manager` som et **Custom repository** med typen *Integration*, hvis det ikke allerede er installeret.
+2. Opdater/geninstaller AI Energy Manager, og genstart Home Assistant.
+3. Gå til **Indstillinger → Enheder og tjenester → AI Energy Manager → Konfigurer**. Kontrollér entity-ID'erne.
+4. Åbn **AI Energy** i sidepanelet. Brug Ctrl+F5 hvis dashboardet er cachet.
+5. **Hold testtilstand slået til**, indtil samtlige sensorer og sikkerhedsgrænser er afprøvet.
 
-1. Kopiér `custom_components/ai_energy_manager` til `/config/custom_components/ai_energy_manager`.
-2. Genstart Home Assistant.
-3. Gå til **Indstillinger → Enheder og tjenester → Tilføj integration → AI Energy Manager**.
-4. Vælg og kontrollér alle entity-ID'er, især P1-målerens fortegn og hvilken temperaturføler der må repræsentere boligen.
-5. Start **uden** skriveadgang. Kontrollér status- og beslutningssensorerne.
-6. Efter manuel afprøvning af Husdata-kommandoerne kan du aktivere separate skriveindstillinger til rumvarme og varmtvand.
+Dashboardet og editoren kræver ikke manuel YAML-installation. Layoutet gemmes i Home Assistants `.storage`; redigér det gennem dashboardets **Rediger dashboard**-knap.
 
-## Automatisk sidepanel
+## Funktioner i 2.0
+- 48-timers rådgivende tidsplan med timebaserede elpriser og vejrdata. Manglende timer vises som ukendte.
+- Forsigtig mulighed for prisbaseret forvarmning **før** kendte dyrere timer, kun under gældende sikkerhedsgrænser og skriveopt-in.
+- Beskyttelse mod gentagne setpunktændringer omkring kompressorskift; maksimal boostvarighed og pause efter længere boost.
+- Overvågning af IVT-alarm, kompressor, Nilan-køling og manglende sensorer. Fejl blokerer nye boosts.
+- Notifikationer ved en bekræftet IVT-alarm eller nye sensorfejl efter tidligere normal drift.
+- Manuel ændring af IVT-rumsetpunkt medfører automatisk pause; særskilt knap **Ophæv manuel varmepause**.
+- Energiprofiler via `select.ai_energy_manager_energiprofil`: Normal, Komfort, Økonomi og Ferie.
+- Nordisk mørkt sidepanel med informationskort, simuleret drift, 48-timers plan, sensorhistorik, beslutningslog og redigerbart layout.
+- Indledende læring af husets afkølingsrate, når der findes en bekræftet rumføler og kompressoren står stille.
+- Rådgivende varmtvandsprioritering. Faktiske Rego 637-ekstravarmtvandskommandoer er **slået fra i denne version** indtil kommandoens betydning og hygiejnebeskyttelsen er verificeret.
+- COP-sensoren forbliver ukendt, medmindre en særskilt sensor for **målt afgivet varmeeffekt** angives i `heat_output`. Elforbruget alene er ikke nok til at beregne COP.
+- Illustrativt 24-timers prisbudget ved **uændret importeffekt**. Det er ikke en forbrugsprognose eller verificeret besparelse.
 
-Når integrationen er konfigureret, registrerer den automatisk sidepanelet **AI Energy** på adressen `/ai-energy`. Panelet er nu **én samlet Nordic Night-side** med sol/elmåler/IVT/Nilan/elpris/vejr/varmtvand/beslutningslog, samt en grafisk illustration af energiflowet. Knappen **Simulér drift** skifter til tydeligt markerede eksempeldata. Den ændrer kun visningen i din browser, sender ingen kommandoer og ændrer ikke integrationens faktiske drift. Genindlæs siden for at vende tilbage til livevisning. Diagrammets pile viser forbindelser, ikke præcist målt fordeling til de enkelte apparater. Du behøver ikke manuelt at oprette et Lovelace-dashboard. Genstart Home Assistant efter opdateringen.
+## Sikkerhedsindstillinger
+Standardværdierne er:
+```
+test_mode: true
+room_verified: false
+write_heat: false
+write_water: false
+energy_mode: normal
+normal: 20.0
+maximum: 22.0
+boost: 0.5
+min_boost_minutes: 30
+max_boost_minutes: 120
+```
 
-## Valgfrit Lovelace-dashboard og tema
+Vælg først den korrekte rumføler: Nilan T3 og T15 har tidligere vist markant forskellige temperaturer. Kontrollér også fortegnet på P1-nettoeffekten. Integrationens automatiske ændringer retter kun IVT-rumsetpunktet og kræver **alle tre**: `room_verified=true`, `write_heat=true`, `test_mode=false`. Integrationens egne sikkerheder er ikke en erstatning for anlæggenes fabriksbeskyttelser.
 
-Kopiér `nordic_night_ai.yaml` til `/config/themes/`. Tilføj eller flet `frontend: themes: !include_dir_merge_named themes` i `configuration.yaml`, og genindlæs temaer. Opret et dashboard via **Indstillinger → Dashboards** og indsæt indholdet fra `dashboard.yaml` i rå editor. Vis dashboardet i sidepanelet.
+Ved Home Assistant- eller Husdata-nedbrud kan et tidligere boost kræve manuel kontrol og gendannelse af rumsetpunktet. Kontrollér dette, før automatisk skriveadgang aktiveres. Slå andre automations fra, hvis de regulerer det samme rumsetpunkt.
 
-Dashboardet oprettes **ikke automatisk**, og entity-ID'erne i dashboardet kan kræve tilpasning.
+## Sådan læses planen
+Tidslinjen viser, hvilke timer der har kendt pris og vejr, og hvornår den regelbaserede model **ville anbefale** forvarmning. Planen udfører ikke kommandoer selv. Den indeholder ikke en troværdig solproduktionsprognose uden ekstra solprognosedata, og modellen kan ikke garantere en bestemt besparelse.
 
-## Sikkerhed / begrænsninger
+Den grønne/blå graf i popup er historiske Recorder-data fra Home Assistant; temperaturkurven i dashboardets øvrige oversigt er en illustration.
 
-- Ingen skrivning er aktiveret som standard.
-- Nilan **overvåges**; integrationen styrer ikke Nilan-ventilatorens hastighed.
-- Verificér særligt at `climate.hp_extra_warm_water` accepterer kommandoen `60` som **60 minutter**, og ikke en temperatur, før varmtvandsstyring aktiveres.
-- Eksisterende automations, der ændrer samme IVT-setpunkt, bør deaktiveres.
-- Et rumsetpunkt kan blive stående på boostniveau ved Home Assistant-nedbrud, mislykket gendannelse eller afinstallation. Kontrollér og gendan selv normalværdien.
-- Manuel ændring af et ejet rumsetpunkt udløser en intern pause. Denne prototype har endnu ikke en god grafisk nulstillingsfunktion.
-- Varmtvandshygiejne, fabriksbeskyttelser og sikkerhedsindstillinger må ikke ændres.
-- Vejrprognose fra dagsensoren er grov, ikke en reel 48-timers timeprognose.
-- Ingen kalibreret COP-model eller dokumenteret besparelsesberegning.
+## Test og udvikling
+GitHub Actions kører `compileall`, `node --check` og unit tests af planlæggeren samt de sikre standardindstillinger. Det er ikke en erstatning for en reel Home Assistant-integrationstest.
 
-Tilføj først en funktion, der ændrer hardware, efter verificering på anlægget. Brug på eget ansvar.
-
-
-## En-sides dashboard v1.3.0
-Nordic Night-dashboardet indeholder et samlet overblik over IVT, Nilan, solproduktion, elpris, vejr, varmtvand og beslutningslog. Knappen **Simulér drift** viser fiktive eksempeldata uden at skrive til nogen Home Assistant-enheder. Husk at bekræfte sensorernes entity-ID'er og fortegnet for P1-måleren. Temperaturgrafen er en illustration, ikke historisk måling. Nilan bliver overvåget; ventilationshastigheden reguleres ikke automatisk.
-
-
-## Klikbare detaljer – v1.4.0
-Klik på statusfelterne, energiflowets enheder eller de større kort for at åbne en lokal detaljevisning med alle relevante sensorværdier. Brug knappen **Vis graf og data** ved en sensor for at åbne Home Assistants indbyggede historik og attributter.
-
-- Solproduktion: Danfoss-strenge og dagens produktion
-- Elnet: P1-effekt, faseværdier, import og eksport
-- IVT: kompressor, varme, fremløb, retur og alarm
-- Varmtvand: temperaturer, stoptemperatur og ekstra varmtvand
-- Nilan: T3, T7, T15, ventilation og varmegenvinding
-- Elpriser, vejr og AI-beslutningslog
-
-Når **Simulér drift** er valgt, er oversigten simuleret, men detaljevinduets sensordata er stadig de rigtige Home Assistant-data. Der sendes ingen styringskommandoer fra klikfunktionerne.
-
-
-## Version 1.5.0 – indbyggede Nordic Night-grafer
-Knappen **Vis graf og data** viser nu historik i en modal, der bruger det samme Nordic Night-design som dashboardet. Vælg 6 timer, 24 timer eller 7 dage. Grafer indlæses via Home Assistants Recorder API, og sensorattributter vises nedenunder. Sensorsignaler som ikke er numeriske vises som en tidslinje af tilstande.
-
-Recorder skal være aktiveret, og den valgte sensor skal have gemt historik. Ingen styringskommandoer udføres. Hvis du anvender Simulér drift, er selve detaljegrafen baseret på reelle HA-sensordata, ikke de simulerede demo-tal.
-
-
-## Version 1.6.0 – grafisk dashboardeditor
-Dashboardet indeholder nu knappen **Rediger dashboard**.
-
-Du kan:
-- Ændre dashboardets titel.
-- Skjule eller vise felter.
-- Flytte felterne op eller ned i hver af de tre grupper: øverste KPI-kort, midterkort og nederste kort.
-- Ændre felternes viste navne.
-- Vælge Home Assistant-entity-ID til de seks øverste målefelter.
-- Vælge farvetema: Nordic Night, Nordic Green, Arctic Blue eller Nordic Violet.
-- Gemme indstillingerne i Home Assistant, så de bruges på tværs af enheder og efter genstart.
-- Nulstille layoutet til standardopsætningen.
-
-**Vigtigt:** Dashboardeditoren ændrer kun visning og hvilke sensorer der bruges i øverste række; den ændrer **ikke** styringsmotorens sensorer, IVT-setpunkter, Nilan eller varmtvandsindstillinger. Disse indstilles separat i integrationens konfiguration. Kun Home Assistant-administratorer kan gemme dashboardlayoutet. Andre brugere kan se layoutet.
-
-Data gemmes i Home Assistants lokale `.storage/ai_energy_manager_dashboard` via API'et `/api/ai_energy_manager/dashboard`. Rediger ikke filen direkte.
-Efter en opdatering til version 1.6.0, genstart Home Assistant og genindlæs browseren. En historikvisning i Nordic Night findes fortsat.
+Repo: https://github.com/allan2620/ha-ai-energy-manager
