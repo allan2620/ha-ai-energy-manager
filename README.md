@@ -1,6 +1,6 @@
 # AI Energy Manager – Nordic Night
 
-**Status: Eksperimentel prototype (v1.2.0). Ikke testet på en faktisk Home Assistant-installation.**
+**Status: Eksperimentel prototype (v1.3.0). Ikke testet på en faktisk Home Assistant-installation.**
 
 En lokal Home Assistant Custom Integration til at overvåge og koordinere IVT Greenline C11 / Rego 637 (Husdata), Nilan, Danfoss-solceller, P1-måler, Energi Data Service og vejrdata. Beslutningsmotoren er **regelbaseret** med simpel observation af afkølingsrate – **ikke en trænet AI-model**.
 
@@ -36,3 +36,7 @@ Dashboardet oprettes **ikke automatisk**, og entity-ID'erne i dashboardet kan kr
 - Ingen kalibreret COP-model eller dokumenteret besparelsesberegning.
 
 Tilføj først en funktion, der ændrer hardware, efter verificering på anlægget. Brug på eget ansvar.
+
+
+## En-sides dashboard v1.3.0
+Nordic Night-dashboardet indeholder et samlet overblik over IVT, Nilan, solproduktion, elpris, vejr, varmtvand og beslutningslog. Knappen **Simulér drift** viser fiktive eksempeldata uden at skrive til nogen Home Assistant-enheder. Husk at bekræfte sensorernes entity-ID'er og fortegnet for P1-måleren. Temperaturgrafen er en illustration, ikke historisk måling. Nilan bliver overvåget; ventilationshastigheden reguleres ikke automatisk.
