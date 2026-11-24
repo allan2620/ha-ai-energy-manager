@@ -26,10 +26,24 @@ async def _setup_panel(hass):
         hass, webcomponent_name="ai-energy-panel",
         frontend_url_path=PANEL_ROUTE,
         sidebar_title="AI Energy", sidebar_icon="mdi:brain",
-        module_url=f"{ASSET_URL}/ai-energy-panel.js?v=2.0.0",
+        module_url=f"{ASSET_URL}/ai-energy-panel.js?v=2.0.1",
         embed_iframe=False, require_admin=False,
     )
     hass.data[PANEL_KEY] = True
+
+async def async_migrate_entry(hass, entry):
+    """Migrate an existing v1 config entry without losing user settings.
+
+    Version 2 only added optional settings with defaults. Existing entity IDs,
+    options and enabled write flags are deliberately kept unchanged.
+    """
+    if entry.version == 1:
+        hass.config_entries.async_update_entry(entry, version=2)
+        return True
+    if entry.version == 2:
+        return True
+    return False
+
 
 async def async_setup_entry(hass, entry):
     if not hass.data.get(API_KEY):
@@ -56,7 +70,7 @@ async def reload_entry(hass, entry):
     await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_unload_entry(hass, entry):
-    ok = await hass.config_entries.async_unload_platforms(entry, ["sensor"])
+    ok = await hass.config_entries.async_unload_platforms(entry, ["sensor", "select", "button"])
     if ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
         if not hass.data[DOMAIN] and hass.data.pop(PANEL_KEY, False):
