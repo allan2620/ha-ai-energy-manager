@@ -27,7 +27,7 @@ def price_slots(price_state, now, hours=48):
             except (TypeError, ValueError):
                 continue
             cost = as_float(row.get("price"))
-            if timestamp is None or cost is None or cost < 0:
+            if timestamp is None or timestamp.tzinfo is None or cost is None or not -10 <= cost <= 50:
                 continue
             out[timestamp.astimezone(dt_util.UTC).replace(minute=0, second=0, microsecond=0)] = round(cost, 3)
     return out
@@ -45,7 +45,7 @@ def weather_slots(hourly, now):
             continue
         temperature = as_float(item.get("temperature"))
         wind = as_float(item.get("wind_speed"))
-        if moment is None or temperature is None:
+        if moment is None or moment.tzinfo is None or temperature is None or not -45 <= temperature <= 55:
             continue
         out[moment.astimezone(dt_util.UTC).replace(minute=0, second=0, microsecond=0)] = {
             "temperature": round(temperature, 1),
@@ -67,7 +67,6 @@ def make_plan(now, prices, forecast, current_price, outdoor, base_temp,
     plan = []
     priced = sorted(v for k, v in prices.items()
                     if now <= k < now + timedelta(hours=48))
-    cheap_cut = min(cheap_limit, priced[max(0, int(len(priced) * .35) - 1)]) if priced else cheap_limit
     for i in range(48):
         moment = now + timedelta(hours=i)
         p = prices.get(moment)
