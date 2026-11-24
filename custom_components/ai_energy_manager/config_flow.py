@@ -67,6 +67,13 @@ class Flow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class Options(config_entries.OptionsFlow):
+    def _save(self, user_input):
+        """Ensure cleared optional selectors override old entry.data values."""
+        values = dict(user_input)
+        for key in OPTIONAL_KEYS:
+            values.setdefault(key, "")
+        return self.async_create_entry(title="", data=values)
+
     def _values(self):
         return {**DEFAULTS, **self.config_entry.data, **self.config_entry.options}
 
@@ -81,7 +88,7 @@ class Options(config_entries.OptionsFlow):
 
     async def async_step_edit(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self._save(user_input)
         return self.async_show_form(
             step_id="edit", data_schema=schema(self._values())
         )
@@ -89,7 +96,7 @@ class Options(config_entries.OptionsFlow):
     async def async_step_autodetect(self, user_input=None):
         if user_input is not None:
             # Saving requires an explicit confirmation of the suggested values.
-            return self.async_create_entry(title="", data=user_input)
+            return self._save(user_input)
         # Preserve valid user choices. Only replace missing/unavailable IDs
         # when a unique likely alternative exists.
         candidates = suggest_values(
