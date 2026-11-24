@@ -13,4 +13,4 @@ class Metric(CoordinatorEntity,SensorEntity):
     def native_value(self): return self.coordinator.data.get(self.key)
     @property
     def extra_state_attributes(self):
-        return {"beslutninger":self.coordinator.data.get("log"),"manuel_pause":self.coordinator.data.get("manual_hold")} if self.key=="status" else None
+        return {"beslutninger":self.coordinator.data.get("log"),"manuel_pause":self.coordinator.data.get("manual_hold"),"fejl":self.coordinator.data.get("faults",[])} if self.key=="status" else None
