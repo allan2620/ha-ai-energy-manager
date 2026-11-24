@@ -77,7 +77,7 @@ class AIEnergyPanel extends HTMLElement {
        :host{display:block;min-height:100%;background:#111925;color:#e5edf7;font-family:Roboto,"Segoe UI",sans-serif;box-sizing:border-box}
        *{box-sizing:border-box}main{max-width:1220px;margin:auto;padding:20px}
        header{display:flex;gap:14px;align-items:center;margin-bottom:20px}
-       header ha-icon{color:#88c0d0;--mdc-icon-size:38px}
+       header ha-icon{color:#88c0d0;--mdc-icon-size:38px}#menu-btn{display:none}@media(max-width:870px){#menu-btn{display:inline-block}}
        h1{font-size:26px;margin:0}small{color:#9aafc7}h2{font-size:18px;margin:0 0 16px}
        nav{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:22px}
        button{font:inherit;border:1px solid #36485c;background:#1c2a3a;color:#c3d4e7;border-radius:10px;padding:10px 14px;cursor:pointer}
@@ -93,11 +93,12 @@ class AIEnergyPanel extends HTMLElement {
        .note{color:#9baec2;font-size:13px;margin-top:15px}
        @media(max-width:600px){main{padding:12px}h1{font-size:21px}.metric{padding:15px}}
       </style>
-      <main><header><ha-icon icon="mdi:brain"></ha-icon><div><h1>AI Energy Manager</h1><small>Nordic Night · Intelligent energioverblik</small></div></header>
+      <main><header><button id="menu-btn" aria-label="Åbn Home Assistant-menu" title="Åbn menu">☰</button><ha-icon icon="mdi:brain"></ha-icon><div><h1>AI Energy Manager</h1><small>Nordic Night · Intelligent energioverblik</small></div></header>
       <nav>${tabs.map(([k,t])=>'<button data-tab="'+k+'" class="'+(k===this.tab?'active':'')+'">'+t+'</button>').join("")}</nav>
       <div id="content">${stats[this.tab]||stats.overblik}</div>
       <p class="note">Live data fra Home Assistant · Beslutningsmotoren er regelbaseret · Fysiske ændringer kræver særskilt aktivering.</p>
       </main>`;
+    this.shadowRoot.querySelector("#menu-btn")?.addEventListener("click",()=>this.dispatchEvent(new Event("hass-toggle-menu",{bubbles:true,composed:true})));
     this.shadowRoot.querySelectorAll("button[data-tab]").forEach(btn=>btn.addEventListener("click",()=>{this.tab=btn.dataset.tab;this.render()}));
   }
 }
