@@ -38,7 +38,13 @@
           "heat_output": "Measured heat output for COP (optional)",
           "notify_energy": "Energy notifications",
           "high_import_w": "High import threshold (W)",
-          "solar_notify_w": "Solar surplus notification threshold (W)"
+          "solar_notify_w": "Solar surplus notification threshold (W)",
+          "presence_entity": "Presence entity (optional)",
+          "battery_soc_entity": "Battery charge level (optional)",
+          "battery_power_entity": "Battery power (optional)",
+          "house_load_entity": "Measured household load (optional)",
+          "assumed_base_load_w": "Assumed baseline load (W), advisory only",
+          "solar_overheat_margin": "Solar overheating safety margin (°C)"
         }
       }
     }
@@ -88,7 +94,13 @@
           "heat_output": "Measured heat output for COP (optional)",
           "notify_energy": "Energy notifications",
           "high_import_w": "High import threshold (W)",
-          "solar_notify_w": "Solar surplus notification threshold (W)"
+          "solar_notify_w": "Solar surplus notification threshold (W)",
+          "presence_entity": "Presence entity (optional)",
+          "battery_soc_entity": "Battery charge level (optional)",
+          "battery_power_entity": "Battery power (optional)",
+          "house_load_entity": "Measured household load (optional)",
+          "assumed_base_load_w": "Assumed baseline load (W), advisory only",
+          "solar_overheat_margin": "Solar overheating safety margin (°C)"
         }
       },
       "autodetect": {
@@ -128,7 +140,13 @@
           "heat_output": "Measured heat output for COP (optional)",
           "notify_energy": "Energy notifications",
           "high_import_w": "High import threshold (W)",
-          "solar_notify_w": "Solar surplus notification threshold (W)"
+          "solar_notify_w": "Solar surplus notification threshold (W)",
+          "presence_entity": "Presence entity (optional)",
+          "battery_soc_entity": "Battery charge level (optional)",
+          "battery_power_entity": "Battery power (optional)",
+          "house_load_entity": "Measured household load (optional)",
+          "assumed_base_load_w": "Assumed baseline load (W), advisory only",
+          "solar_overheat_margin": "Solar overheating safety margin (°C)"
         }
       }
     }
