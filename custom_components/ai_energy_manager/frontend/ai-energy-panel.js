@@ -470,12 +470,12 @@ class AIEnergyPanel extends HTMLElement {
     const manualPause=Boolean(status?.attributes?.manuel_pause);
     const testMode=status?.attributes?.testtilstand!==false;
     const controls='<div class="plan-policy"><span class="mode-pill">'+(testMode?"TESTTILSTAND":"STYRING KAN VÆRE AKTIV")+'</span>'+
-      (manualPause?'<span class="mode-pill warning-pill">Manuel pause aktiv</span><button id="resume-manual" type="button">Ophæv manuel pause</button>':"")+
-      '<label>Energiprofil: <select id="energy-mode" aria-label="Vælg energiprofil">'+
+      (manualPause?'<span class="mode-pill warning-pill">Manuel pause aktiv</span><button id="resume-manual" type="button" '+(this.demo?'disabled':'')+'>Ophæv manuel pause</button>':"")+
+      '<label>Energiprofil: <select id="energy-mode" aria-label="Vælg energiprofil" '+(this.demo?'disabled':'')+'>'+
       options.map(x=>'<option value="'+x+'" '+(x===mode?'selected':'')+'>'+({
         normal:"Normal",comfort:"Komfort",economy:"Økonomi",holiday:"Ferie"
       }[x])+'</option>').join("")+'</select></label>'+
-      '<small>Energiprofil styrer kun tilvalg; testtilstand og sikkerhed kan ikke omgås.</small></div>';
+      '<small>'+(this.demo?'Simulation: styringsknapper er deaktiveret':'Energiprofil ændrer kun tilvalg; sikkerhedsgrænser gælder stadig')+'</small></div>';
     const cards=plan.length?plan.map((hour,index)=>{
       const price=typeof hour.price==="number"?this.fmt(hour.price,2):"—";
       const out=typeof hour.outdoor==="number"?this.fmt(hour.outdoor,1)+" °C":"—";
@@ -899,6 +899,7 @@ class AIEnergyPanel extends HTMLElement {
       this.render();
     });
     this.shadowRoot.querySelector("#resume-manual")?.addEventListener("click",async()=>{
+      if(this.demo)return;
       const entity=Object.values(this._hass.states||{}).find(x=>x.entity_id.startsWith("button.ai_energy_manager_")&&
         x.attributes?.friendly_name==="AI Energy Manager Ophæv manuel varmepause");
       if(!entity){this.editorError="Ophæv manuel varmepause-knappen findes ikke";return;}
@@ -906,10 +907,11 @@ class AIEnergyPanel extends HTMLElement {
       catch(err){this.editorError=String(err?.message||err);}
     });
     this.shadowRoot.querySelector("#energy-mode")?.addEventListener("change",async(e)=>{
+      if(this.demo)return;
       const value=e.target.value;
       this._modePending=value;
       const entity=Object.values(this._hass.states||{}).find(x=>x.entity_id.startsWith("select.ai_energy_manager_")&&x.attributes?.friendly_name==="AI Energy Manager Energiprofil");
-      if(!entity){this.editorError="Energiprofil-entity findes endnu ikke";return;}
+      if(!entity){this._modePending=null;this.editorError="Energiprofil-entity findes endnu ikke";this.render();return;}
       try{
         await this._hass.callService("select","select_option",{entity_id:entity.entity_id,option:value});
       }catch(err){this._modePending=null;this.editorError=String(err?.message||err);this.render();}
