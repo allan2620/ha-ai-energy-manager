@@ -35,4 +35,10 @@ DEFAULTS = {
     "notify_energy": True,
     "high_import_w": 9500.0,
     "solar_notify_w": 3000.0,
+    "presence_entity": "",
+    "battery_soc_entity": "",
+    "battery_power_entity": "",
+    "house_load_entity": "",
+    "assumed_base_load_w": 0.0,
+    "solar_overheat_margin": 0.2,
 }
