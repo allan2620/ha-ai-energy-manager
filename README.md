@@ -1,4 +1,4 @@
-# AI Energy Manager 2.0 – Nordic Night
+# AI Energy Manager 2.1.0 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
