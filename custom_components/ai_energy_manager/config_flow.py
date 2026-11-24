@@ -73,7 +73,10 @@ class Options(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         return self.async_show_menu(
             step_id="init",
-            menu_options=["edit", "autodetect"],
+            menu_options={
+                "edit": "Rediger indstillinger",
+                "autodetect": "Automatisk registrering (Auto Detect)",
+            },
         )
 
     async def async_step_edit(self, user_input=None):
