@@ -1,4 +1,4 @@
-# AI Energy Manager 2.1.1 – Nordic Night
+# AI Energy Manager 2.1.2 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
@@ -78,3 +78,14 @@ Reference: https://www.home-assistant.io/actions/forecast_solar.get_forecast/
 
 ## Version 2.1.1 – stabil betjening
 Live-opdateringer bevarer nu den vandrette 48-timers plans scrollposition og tager hensyn til brugeren, når en dropdown er aktiv. Vælg en energiprofil uden at menuen lukker på grund af sensoropdateringer. Valget bliver holdt synligt, indtil Home Assistant bekræfter den nye tilstand. Test efter HACS-opdatering og genstart.
+
+
+## Version 2.1.2 – søgbare entities og Auto Detect
+
+Opsætning og Konfigurer anvender nu Home Assistants indbyggede søgbare entity-vælger til alle sensor- og climate-entityfelter, herunder valgfri `heat_output`. Forecast.Solar-konfigurationen anvender en særskilt konfigurationsvælger.
+
+- **Ny installation:** Installationsformularen foreslår entydigt identificerede entities automatisk.
+- **Eksisterende installation:** Vælg **Konfigurer → Rediger indstillinger** eller **Konfigurer → Automatisk registrering**. Sidstnævnte foreslår nyt entity-ID, hvis det gemte ikke længere findes, og viser alle forslag, inden du selv gemmer.
+- Scanner alene Home Assistants lokale liste over registrerede entities, uden netværkssøgning og uden automatiske styringskommandoer.
+- Ved tvetydige træffere vælges ingen vilkårlig sensor. Kontrollér især Nilan T15/T3, Husdata, elmålerens fortegn og om `room_verified` skal være aktiveret. Automatisk styring slås aldrig til af en scanning.
+- Der findes ikke automatisk COP-beregning uden en særskilt korrekt termisk effektmåling.
