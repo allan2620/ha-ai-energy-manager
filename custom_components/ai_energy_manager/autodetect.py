@@ -12,6 +12,10 @@ ENTITY_DOMAINS = {
     "weather_entity": ("weather",), "hp": ("climate",),
     "dhw": ("climate",), "nilan": ("climate",),
     "heat_output": ("sensor",),
+    "presence_entity": ("person", "device_tracker", "binary_sensor", "input_boolean"),
+    "battery_soc_entity": ("sensor",),
+    "battery_power_entity": ("sensor",),
+    "house_load_entity": ("sensor",),
 }
 
 # Exact known IDs are preferred to fuzzy title matching. Descriptions are
@@ -30,6 +34,10 @@ PATTERNS = {
     "dhw": ("hp_extra_warm_water", "extra_hot_water"),
     "nilan": ("boiler_room_nilan_hvac", "nilan_hvac", "nilan"),
     "heat_output": ("heat_output_power", "thermal_output_power", "heat_meter_power"),
+    "presence_entity": ("presence", "someone_home", "all_home", "home_occupied"),
+    "battery_soc_entity": ("battery_state_of_charge", "battery_soc", "battery_level"),
+    "battery_power_entity": ("battery_power", "battery_charge_power"),
+    "house_load_entity": ("husets_liveforbrug", "house_load", "house_power", "home_consumption"),
 }
 
 
@@ -46,6 +54,10 @@ def _suitable(field, state):
         return unit in ("W", "kW")
     if field in ("room", "outdoor", "water"):
         return unit == "°C"
+    if field == "battery_soc_entity":
+        return unit in ("%", None)
+    if field in ("battery_power_entity", "house_load_entity"):
+        return unit in ("W", "kW")
     if field == "price":
         return unit in ("DKK/kWh", "kr/kWh")
     return True
