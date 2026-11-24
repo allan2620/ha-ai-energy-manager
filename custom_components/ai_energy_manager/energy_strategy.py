@@ -35,27 +35,35 @@ def presence_state(state):
 
 
 def dhw_demand_update(history, now, measured, mode="normal"):
-    """Observe significant hot-water top-temperature drops, not water volume.
+    """Learn possible DHW draws using a rolling seven-day observation window.
 
-    Requires samples 5-30 minutes apart. Per-hour drop observations describe
-    *possible* demand and are NOT guaranteed draw events.
+    Temperature drops alone cannot establish draw volume. Sample every
+    5-30 minutes and keep at most 336 recent events.
     """
     previous = history.get("dhw_last_sample")
-    counts = history.get("dhw_events")
-    counts = counts if isinstance(counts, list) and len(counts) == 24 else [0] * 24
-    if measured is None:
-        return {"counts": counts, "events": sum(counts), "detected": False}
+    previous_events = history.get("dhw_event_log", [])
+    recent = [
+        item for item in previous_events
+        if isinstance(item, list) and len(item) == 2
+        and isinstance(item[0], (int, float))
+        and 0 <= now.timestamp() - item[0] <= 7 * 86400
+        and isinstance(item[1], int) and 0 <= item[1] <= 23
+    ]
     detected = False
-    if isinstance(previous, list) and len(previous) == 2:
-        stamp, former = previous
-        seconds = now.timestamp() - stamp
-        delta = former - measured
-        if 300 <= seconds <= 1800 and 2 <= delta <= 15:
-            local_hour = now.hour
-            counts[local_hour] = min(100, counts[local_hour] + 1)
-            detected = True
-    history["dhw_last_sample"] = [now.timestamp(), measured]
-    history["dhw_events"] = counts
+    if measured is not None:
+        if isinstance(previous, list) and len(previous) == 2:
+            stamp, former = previous
+            if isinstance(stamp, (float, int)) and isinstance(former, (float, int)):
+                seconds = now.timestamp() - stamp
+                delta = former - measured
+                if 300 <= seconds <= 1800 and 2 <= delta <= 15:
+                    recent.append([now.timestamp(), now.hour])
+                    detected = True
+        history["dhw_last_sample"] = [now.timestamp(), measured]
+    history["dhw_event_log"] = recent[-336:]
+    counts = [0] * 24
+    for _, hour in history["dhw_event_log"]:
+        counts[hour] += 1
     return {"counts": counts, "events": sum(counts), "detected": detected}
 
 
