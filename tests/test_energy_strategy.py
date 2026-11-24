@@ -51,6 +51,15 @@ class CoordinationTests(unittest.TestCase):
         out=mod.dhw_demand_update(state,self.now+timedelta(minutes=10),51)
         self.assertTrue(out["detected"])
         self.assertEqual(out["events"],1)
+    def test_old_hotwater_patterns_expire(self):
+        history={"dhw_event_log":[
+            [self.now.timestamp()-10*86400, 8],
+            [self.now.timestamp()-2*86400, 9]
+        ]}
+        result=mod.dhw_demand_update(history,self.now,None)
+        self.assertEqual(result["events"],1)
+        self.assertEqual(result["counts"][9],1)
+
     def test_no_bad_sample_learning(self):
         state={}
         mod.dhw_demand_update(state,self.now,55)
