@@ -1,0 +1,10 @@
+Nordic Night AI:
+  primary-color: "#88c0d0"
+  modes:
+    dark:
+      primary-background-color: "#151c28"
+      secondary-background-color: "#202a38"
+      card-background-color: "#242f40"
+      primary-text-color: "#eceff4"
+      secondary-text-color: "#aab8cc"
+      accent-color: "#a3be8c"
