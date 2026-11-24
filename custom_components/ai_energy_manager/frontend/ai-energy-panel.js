@@ -20,12 +20,43 @@ class AIEnergyPanel extends HTMLElement {
     this.layoutLoadStarted=false;
     this.layoutSaving=false;
     this._renderQueued = false;
+    this._scrollInteractionUntil = 0;
+    this._deferredRenderTimer = null;
+    this._modePending = null;
+    this.shadowRoot.addEventListener("focusout", () => {
+      // A native select needs to stay mounted until the user has finished.
+      if (!this._deferredRenderTimer) {
+        this._deferredRenderTimer = setTimeout(() => {
+          this._deferredRenderTimer = null;
+          this.render();
+        }, 200);
+      }
+    });
   }
 
   set hass(v) {
     this._hass = v;
     if(!this.layoutLoadStarted){this.layoutLoadStarted=true;this.loadLayout();}
     if(this.editMode)return;
+    // Home Assistant can publish state changes several times per second.
+    // Replacing shadowRoot.innerHTML while the select is active closes its
+    // native menu; replacing the scroll rail resets its horizontal position.
+    const focused = this.shadowRoot.activeElement;
+    const editingControl = focused && ["SELECT", "INPUT", "TEXTAREA"].includes(focused.tagName);
+    if (editingControl || Date.now() < this._scrollInteractionUntil) {
+      if (!this._deferredRenderTimer) {
+        this._deferredRenderTimer = setTimeout(() => {
+          this._deferredRenderTimer = null;
+          if (this._hass && !this.editMode) {
+            const active = this.shadowRoot.activeElement;
+            if (active && ["SELECT", "INPUT", "TEXTAREA"].includes(active.tagName)) return;
+            if (Date.now() < this._scrollInteractionUntil) return;
+            this.render();
+          }
+        }, 2200);
+      }
+      return;
+    }
     if (!this._renderQueued) {
       this._renderQueued = true;
       requestAnimationFrame(() => {
@@ -432,7 +463,9 @@ class AIEnergyPanel extends HTMLElement {
     const slot=byName("AI Energy Manager Foreslået varmtvandstid")?.state;
     const slotText=slot&&!["unknown","unavailable","none"].includes(slot)?
       new Date(slot).toLocaleString("da-DK",{weekday:"short",hour:"2-digit",minute:"2-digit"}):"—";
-    const mode=status?.attributes?.energiprofil||"normal";
+    const actualMode=status?.attributes?.energiprofil||"normal";
+    if (this._modePending && actualMode===this._modePending) this._modePending=null;
+    const mode=this._modePending||actualMode;
     const options=["normal","comfort","economy","holiday"];
     const manualPause=Boolean(status?.attributes?.manuel_pause);
     const testMode=status?.attributes?.testtilstand!==false;
@@ -476,6 +509,15 @@ class AIEnergyPanel extends HTMLElement {
 
   render() {
     if (!this._hass) return;
+    // Keep the user's position when live values refresh the dashboard.
+    const previous = {
+      pageY: this.scrollTop,
+      pageX: this.scrollLeft,
+      planX: this.shadowRoot.querySelector(".plan-scroll")?.scrollLeft ?? 0,
+      planY: this.shadowRoot.querySelector(".plan-scroll")?.scrollTop ?? 0,
+      contentY: this.shadowRoot.querySelector(".content")?.scrollTop ?? 0,
+      contentX: this.shadowRoot.querySelector(".content")?.scrollLeft ?? 0,
+    };
     const demo = this.demo;
     const statusEntity = this.liveStatusSensor;
     const liveStatus = this.st(statusEntity);
@@ -836,6 +878,18 @@ class AIEnergyPanel extends HTMLElement {
     this.shadowRoot.querySelector("#graph-back")?.addEventListener("click",()=>{this.graphEntity=null;this.graphHistory=[];this.render();});
     this.shadowRoot.querySelectorAll("[data-graph-hours]").forEach(btn=>btn.addEventListener("click",()=>this.showMoreInfo(this.graphEntity,Number(btn.dataset.graphHours))));
 
+    const rail=this.shadowRoot.querySelector(".plan-scroll");
+    if(rail) {
+      rail.scrollLeft=previous.planX;
+      rail.scrollTop=previous.planY;
+      rail.addEventListener("scroll",()=>{
+        this._scrollInteractionUntil=Date.now()+1800;
+      },{passive:true});
+    }
+    const contentEl=this.shadowRoot.querySelector(".content");
+    if(contentEl){contentEl.scrollTop=previous.contentY;contentEl.scrollLeft=previous.contentX;}
+    this.scrollTop=previous.pageY;
+    this.scrollLeft=previous.pageX;
     this.applyLayout();
     this.bindEditor();
     this.shadowRoot.getElementById("edit-dashboard")?.addEventListener("click",()=>{
@@ -853,11 +907,12 @@ class AIEnergyPanel extends HTMLElement {
     });
     this.shadowRoot.querySelector("#energy-mode")?.addEventListener("change",async(e)=>{
       const value=e.target.value;
+      this._modePending=value;
       const entity=Object.values(this._hass.states||{}).find(x=>x.entity_id.startsWith("select.ai_energy_manager_")&&x.attributes?.friendly_name==="AI Energy Manager Energiprofil");
       if(!entity){this.editorError="Energiprofil-entity findes endnu ikke";return;}
       try{
         await this._hass.callService("select","select_option",{entity_id:entity.entity_id,option:value});
-      }catch(err){this.editorError=String(err?.message||err);}
+      }catch(err){this._modePending=null;this.editorError=String(err?.message||err);this.render();}
     });
     this.shadowRoot.getElementById("simulate-btn")?.addEventListener("click", () => {
       this.demo = !this.demo;
