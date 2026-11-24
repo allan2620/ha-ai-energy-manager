@@ -24,7 +24,7 @@ class Engine(DataUpdateCoordinator):
             update_interval=timedelta(minutes=5),
         )
         self.c = {**DEFAULTS, **entry.data, **entry.options}
-        self.store = Store(hass, 2, "ai_energy_manager_state_" + entry.entry_id)
+        self.store = Store(hass, 1, "ai_energy_manager_" + entry.entry_id)
         self.saved = None
 
     def state(self, key):
@@ -120,6 +120,18 @@ class Engine(DataUpdateCoordinator):
         # Climate forecasting: accept hourly forecasts only when actually available.
         weather_state = self.state("weather")
         hourly = weather_state.attributes.get("forecast", []) if weather_state else []
+        # The official weather entity can provide hourly forecasts through its service.
+        try:
+            response = await self.hass.services.async_call(
+                "weather", "get_forecasts",
+                {"entity_id": cfg["weather_entity"], "type": "hourly"},
+                blocking=True, return_response=True,
+            )
+            service_forecast = (response or {}).get(cfg["weather_entity"], {}).get("forecast", [])
+            if service_forecast:
+                hourly = service_forecast
+        except Exception as exc:
+            _LOGGER.debug("Hourly weather forecast unavailable: %s", exc)
         if not isinstance(hourly, list):
             hourly = []
         hourly = [
