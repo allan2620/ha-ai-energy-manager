@@ -13,6 +13,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DEFAULTS
 from .planner import as_float, make_plan, price_slots, weather_slots
+from .pv_forecast import parse_pv_forecast, pv_summary
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +29,9 @@ class Engine(DataUpdateCoordinator):
         self.saved = None
         self._hourly_cache = []
         self._hourly_cache_until = 0
+        self._pv_cache = {}
+        self._pv_cache_until = 0
+        self._pv_status = "Afventer Forecast.Solar"
 
     def state(self, key):
         return self.hass.states.get(self.c[key])
@@ -153,12 +157,49 @@ class Engine(DataUpdateCoordinator):
         # A daily forecast is not relabelled as 48 hours of hourly forecasts.
         forecasts = weather_slots(hourly, now)
         prices = price_slots(self.state("price"), now)
+        # Forecast.Solar cached service response: optional, read-only.
+        pv_forecast = {}
+        solar_entries = self.hass.config_entries.async_entries("forecast_solar")
+        preferred_id = cfg.get("pv_forecast_entry", "").strip()
+        selected_entry = next((e for e in solar_entries if e.entry_id == preferred_id), None) if preferred_id else (
+            solar_entries[0] if len(solar_entries) == 1 else None
+        )
+        if selected_entry and self.hass.services.has_service("forecast_solar", "get_forecast"):
+            if timestamp < self._pv_cache_until:
+                pv_forecast = self._pv_cache
+            else:
+                try:
+                    response = await self.hass.services.async_call(
+                        "forecast_solar", "get_forecast",
+                        {"config_entry": selected_entry.entry_id, "resolution": "hourly"},
+                        blocking=True, return_response=True,
+                    )
+                    pv_forecast = parse_pv_forecast(response, now)
+                    if pv_forecast:
+                        self._pv_cache = pv_forecast
+                        self._pv_cache_until = timestamp + 1800
+                        self._pv_status = "Forecast.Solar: timeprognose"
+                    else:
+                        self._pv_status = "Forecast.Solar returnerede ingen gyldige timer"
+                except Exception as exc:
+                    self._pv_status = "PV-prognose kunne ikke indlæses"
+                    _LOGGER.warning("Forecast.Solar read failed: %s", exc)
+        elif len(solar_entries) > 1 and not preferred_id:
+            self._pv_status = "Flere Forecast.Solar-anlæg: vælg pv_forecast_entry"
+        elif not selected_entry:
+            self._pv_status = "Forecast.Solar mangler: installer og konfigurer integrationen"
+        else:
+            self._pv_status = "Forecast.Solar understøtter ikke get_forecast på dette system"
+        tz = dt_util.get_time_zone(self.hass.config.time_zone) or dt_util.UTC
+        pv_info = pv_summary(pv_forecast, now, tz)
+        if pv_forecast and timestamp < self._pv_cache_until:
+            self._pv_status = "Forecast.Solar: timeprognose"
         planning = make_plan(
             now, prices, forecasts, price, outdoor, cfg["normal"],
             allowed=bool(cfg["room_verified"] and safe),
             cheap_limit=cfg["cheap"], room_target=cfg["normal"],
             boost=cfg["boost"], mode=cfg.get("energy_mode", "normal"),
-            nominal_kw=cfg.get("nominal_hp_kw", 2.5),
+            nominal_kw=cfg.get("nominal_hp_kw", 2.5), pv=pv_forecast,
         )
         cold = min(
             (f["temperature"] for k, f in forecasts.items()
@@ -441,6 +482,11 @@ class Engine(DataUpdateCoordinator):
             "dhw_suggestion": dhw_suggestion,
             "mode": mode,
             "plan_note": planning["note"],
+            "pv_forecast_status": self._pv_status,
+            "pv_forecast_hours": planning["pv_hours"],
+            "pv_today_remaining_kwh": pv_info["pv_today_remaining_kwh"],
+            "pv_tomorrow_kwh": pv_info["pv_tomorrow_kwh"],
+            "pv_peak_w": pv_info["pv_peak_w"],
             "nilan_cooling": nilan_cooling,
             "cop": cop,
             "budget_24": budget_24,
