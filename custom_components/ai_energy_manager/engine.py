@@ -301,6 +301,30 @@ class Engine(DataUpdateCoordinator):
             except Exception as exc:
                 logs.append("IVT boost mislykkedes: " + str(exc)[:100])
 
+        # COP is only available when an actual heat-output power meter exists.
+        heat_output = None
+        if cfg.get("heat_output"):
+            heat_sensor = self.hass.states.get(cfg["heat_output"])
+            if heat_sensor:
+                value = as_float(heat_sensor.state)
+                unit = heat_sensor.attributes.get("unit_of_measurement")
+                if value is not None and unit in ("W", "kW"):
+                    heat_output = value * (1000 if unit == "kW" else 1)
+        cop = round(heat_output / hp, 2) if heat_output is not None and hp and hp > 100 else None
+
+        # Cost budget assumes the *current* grid import remains unchanged for
+        # 24 hours. This is not a forecast of future household consumption.
+        hours24 = planning["hours"][:24]
+        complete = len(hours24) == 24 and all(item["price"] is not None for item in hours24)
+        current_import_kw = (
+            max(0, (grid if not cfg["export_positive"] else -grid) / 1000)
+            if grid is not None else None
+        )
+        budget_24 = (
+            round(current_import_kw * sum(hour["price"] for hour in hours24), 2)
+            if complete and current_import_kw is not None else None
+        )
+
         # Do not dispatch Husdata extra DHW commands automatically until the
         # integration's special duration semantics have been verified on device.
         dhw_suggestion = bool(
@@ -350,4 +374,7 @@ class Engine(DataUpdateCoordinator):
             "mode": mode,
             "plan_note": planning["note"],
             "nilan_cooling": nilan_cooling,
+            "cop": cop,
+            "budget_24": budget_24,
+            "predictive_preheat": predictive_preheat,
         }
