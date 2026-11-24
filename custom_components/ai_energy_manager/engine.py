@@ -239,16 +239,18 @@ class Engine(DataUpdateCoordinator):
             unit = item.attributes.get("unit_of_measurement")
             if unit not in units:
                 return None
-            value = bounded_number(item.state, lower, upper)
-            if value is None:
+            # Convert to the requested output unit *before* applying bounds.
+            raw = bounded_number(item.state, -1e7, 1e7)
+            if raw is None:
                 return None
-            return value * 1000 if unit == "kW" else value
+            value = raw * 1000 if unit == "kW" else raw
+            return value if lower <= value <= upper else None
 
         presence_id = cfg.get("presence_entity", "")
         presence = presence_state(self.hass.states.get(presence_id)) if presence_id else "unknown"
         battery_soc = optional_read("battery_soc_entity", 0, 100, ("%", None))
-        battery_power_w = optional_read("battery_power_entity", -100, 100, ("W", "kW"))
-        house_load_w = optional_read("house_load_entity", 0, 100, ("W", "kW"))
+        battery_power_w = optional_read("battery_power_entity", -100000, 100000, ("W", "kW"))
+        house_load_w = optional_read("house_load_entity", 0, 100000, ("W", "kW"))
         # Without a measured household load, don't advertise export forecast.
         load_for_surplus = house_load_w if house_load_w is not None else None
         hotwater_activity = dhw_demand_update(memory, dt_util.as_local(now), water)
