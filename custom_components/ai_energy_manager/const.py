@@ -31,4 +31,7 @@ DEFAULTS = {
     "future_price_jump": 0.8,
     "max_boost_minutes": 120,
     "heat_output": "",
+    "notify_energy": True,
+    "high_import_w": 9500.0,
+    "solar_notify_w": 3000.0,
 }
