@@ -109,6 +109,10 @@ def coordinate_plan(plan, *, presence="unknown", battery_soc=None,
             reasons.append("Lav elpris i denne time")
         else:
             heat = row["action"]
+        if battery_soc is not None and battery_soc < 25 and solar_opportunity:
+            if not overheating and heat.startswith("Solbaseret"):
+                heat = "Batteriet er lavt: overvej lagring før ekstra varme"
+            reasons.append("Batteriet er under 25 %, og PV er en prognose")
         if windy_cold:
             reasons.append("Koldt og blæsende: større muligt varmetab")
         if presence == "away":
