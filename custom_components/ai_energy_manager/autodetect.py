@@ -35,7 +35,20 @@ PATTERNS = {
 
 def _valid(state):
     value = getattr(state, "state", None)
-    return value not in (None, "unavailable", "unknown")
+    return value not in (None, "unavailable", "unknown", "")
+
+
+def _suitable(field, state):
+    """Reject mismatched units and obvious unintended device types."""
+    attrs = getattr(state, "attributes", {}) or {}
+    unit = attrs.get("unit_of_measurement")
+    if field in ("grid", "pv", "hp_power", "heat_output"):
+        return unit in ("W", "kW")
+    if field in ("room", "outdoor", "water"):
+        return unit in ("°C", "°F")
+    if field == "price":
+        return unit in ("DKK/kWh", "kr/kWh", "DKK/MWh", "EUR/kWh")
+    return True
 
 
 def detect_entities(states):
@@ -47,12 +60,12 @@ def detect_entities(states):
     result = {}
     for field, domains in ENTITY_DOMAINS.items():
         default = DEFAULTS.get(field)
-        if default and default in states and _valid(states[default]):
+        if default and default in states and _valid(states[default]) and _suitable(field, states[default]):
             result[field] = default
             continue
         candidates = []
         for entity_id, state in states.items():
-            if entity_id.split(".", 1)[0] not in domains or not _valid(state):
+            if entity_id.split(".", 1)[0] not in domains or not _valid(state) or not _suitable(field, state):
                 continue
             name = str(getattr(state, "attributes", {}).get("friendly_name", "") or "").lower()
             slug = entity_id.split(".", 1)[1].lower()
@@ -89,7 +102,7 @@ def suggest_values(states, current=None, *, refresh_missing=False):
         configured = (current or {}).get(field, "")
         if configured and not refresh_missing:
             continue
-        if configured and refresh_missing and configured in states:
+        if configured and refresh_missing and configured in states and _valid(states[configured]):
             continue
         if not configured or (configured not in states and refresh_missing):
             values[field] = entity_id
