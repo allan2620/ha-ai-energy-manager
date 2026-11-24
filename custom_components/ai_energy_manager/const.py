@@ -10,6 +10,7 @@ DEFAULTS = {
     "price": "sensor.energi_data_service",
     "weather": "sensor.custom_weather_forecast_daily",
     "weather_entity": "weather.forecast_hjem",
+    "pv_forecast_entry": "",
     "hp": "climate.hp_room_temp_setpoint",
     "dhw": "climate.hp_extra_warm_water",
     "nilan": "climate.boiler_room_nilan_hvac",
