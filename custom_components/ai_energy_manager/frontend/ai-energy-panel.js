@@ -421,6 +421,12 @@ class AIEnergyPanel extends HTMLElement {
     const maxPrice=prices.length?Math.max(...prices):null;
     const span=minPrice===null?"—":this.fmt(maxPrice-minPrice,2)+" kr/kWh";
     const projected=(maxPrice===null||minPrice===null)?"—":this.fmt(Math.max(0,maxPrice-minPrice)*2.5,2)+" kr";
+    const byName=(label)=>Object.values(this._hass?.states||{}).find(x=>x.entity_id?.startsWith("sensor.ai_energy_manager_")&&x.attributes?.friendly_name===label);
+    const budget=byName("AI Energy Manager Budget 24 timer ved konstant belastning")?.state;
+    const cop=byName("AI Energy Manager COP målt")?.state;
+    const slot=byName("AI Energy Manager Foreslået varmtvandstid")?.state;
+    const slotText=slot&&!["unknown","unavailable","none"].includes(slot)?
+      new Date(slot).toLocaleString("da-DK",{weekday:"short",hour:"2-digit",minute:"2-digit"}):"—";
     const mode=status?.attributes?.energiprofil||"normal";
     const options=["normal","comfort","economy","holiday"];
     const manualPause=Boolean(status?.attributes?.manuel_pause);
@@ -450,7 +456,10 @@ class AIEnergyPanel extends HTMLElement {
       '<div class="plan-summary"><div><span>Prisdata</span><strong>'+this.esc(coverage.pristimer??0)+'/48 timer</strong></div>'+
       '<div><span>Vejrdata</span><strong>'+this.esc(coverage.vejrtimer??0)+'/48 timer</strong></div>'+
       '<div><span>Prisspænd</span><strong>'+span+'</strong></div>'+
-      '<div><span>Teoretisk prisforskel pr. flyttet time (2,5 kW)</span><strong>'+projected+'</strong></div></div>'+
+      '<div><span>Teoretisk prisforskel pr. flyttet time (2,5 kW)</span><strong>'+projected+'</strong></div>'+
+      '<div><span>Prisbudget 24 timer ved uændret nettoimport</span><strong>'+this.esc(budget&&!["unknown","unavailable"].includes(budget)?budget+" kr":"—")+'</strong></div>'+
+      '<div><span>Målt COP (kræver varmemåler)</span><strong>'+this.esc(cop&&!["unknown","unavailable"].includes(cop)?cop:"—")+'</strong></div>'+
+      '<div><span>Forslag til varmtvandsopvarmning</span><strong>'+this.esc(slotText)+'</strong></div></div>'+
       controls+'<div class="plan-scroll"><div class="plan-hours">'+cards+'</div></div>'+
       '<p class="plan-note">'+this.esc(coverage["bemærkning"]||"Planen er vejledende, og besparelser er ikke målt.")+'</p>'+
       '</section>';
@@ -647,7 +656,7 @@ class AIEnergyPanel extends HTMLElement {
         @media(max-width:600px){.editor-fields,.editor-item{grid-template-columns:1fr}.editor-footer{flex-wrap:wrap}}
         .plan-section{margin-top:14px}
         .plan-intro,.plan-note{font-size:12px;color:#b1c9d9}
-        .plan-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+        .plan-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
         .plan-summary>div{background:#162e40;border:1px solid #3a5974;border-radius:10px;padding:10px}
         .plan-summary span{display:block;color:#acc4d5;font-size:12px}
         .plan-summary strong{display:block;font-size:17px}
