@@ -30,6 +30,13 @@ METRICS = [
     ("budget_24","Budget 24 timer ved konstant belastning","DKK"),
     ("predictive_preheat","Forvarmning før dyr strøm",None),
     ("dhw_slot","Foreslået varmtvandstid",None),
+    ("dhw_reason","Begrundelse for varmtvandsplan",None),
+    ("presence","Tilstedeværelse",None),
+    ("battery_soc","Batteristand","%"),
+    ("battery_power_w","Batterieffekt","W"),
+    ("house_load_w","Målt husforbrug","W"),
+    ("thermal_warning","Risiko for ekstra solopvarmning",None),
+    ("dhw_demand_events","Observerede varmtvandstemperaturfald",None),
 ]
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -79,6 +86,9 @@ class Metric(CoordinatorEntity, SensorEntity):
                 "plan_timer_med_vejr": data.get("weather_hours", 0),
                 "plan_timer_med_pv": data.get("pv_forecast_hours", 0),
                 "pv_prognose_status": data.get("pv_forecast_status"),
+                "tilstedeværelse": data.get("presence", "unknown"),
+                "batteristand": data.get("battery_soc"),
+                "varme_advarsel": data.get("thermal_warning"),
             }
         if self.key == "plan":
             return {
