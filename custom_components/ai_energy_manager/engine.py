@@ -33,7 +33,29 @@ class Engine(DataUpdateCoordinator):
         available=export+max(0,hp) if export is not None and hp is not None else None
         nilan=self.state("nilan"); cooling=nilan is not None and (nilan.state=="cool" or nilan.attributes.get("hvac_action")=="cooling")
         alarm=self.hass.states.get("binary_sensor.hp_alarm")
-        safe=all(v is not None for v in (grid,pv,hp,room,out,water,price)) and alarm is not None and alarm.state=="off" and nilan is not None and nilan.state not in ("unknown","unavailable") and 15<=c["normal"]<=24 and c["normal"]<=c["maximum"]<=25 and 0<=c["boost"]<=1 and c["start_w"]>c["stop_w"]>=0
+        measurements = {"grid": grid, "pv": pv, "hp_power": hp, "room": room,
+                        "outdoor": out, "water": water, "price": price}
+        labels = {"grid": "P1 elmåler", "pv": "Danfoss solproduktion",
+                  "hp_power": "IVT strømforbrug", "room": "Rumtemperatur",
+                  "outdoor": "Udetemperatur", "water": "Varmtvandstemperatur",
+                  "price": "Elpris"}
+        faults = []
+        for key, value in measurements.items():
+            if value is None:
+                entity = c[key]
+                obj = self.state(key)
+                observed = obj.state if obj else "mangler"
+                faults.append(f"{labels[key]} ({entity}: {observed})")
+        if alarm is None or alarm.state not in ("on", "off"):
+            faults.append("IVT alarmstatus mangler/er ukendt (binary_sensor.hp_alarm)")
+        elif alarm.state == "on":
+            faults.append("IVT har aktiv alarm (binary_sensor.hp_alarm)")
+        if nilan is None or nilan.state in ("unknown", "unavailable"):
+            faults.append(f"Nilan driftstatus mangler/er ukendt ({c['nilan']})")
+        if not (15 <= c["normal"] <= 24 and c["normal"] <= c["maximum"] <= 25
+                and 0 <= c["boost"] <= 1 and c["start_w"] > c["stop_w"] >= 0):
+            faults.append("Ugyldige temperatur- eller solgrænser i integrationens indstillinger")
+        safe = not faults
         forecast=self.state("weather"); lows=[]
         for f in (forecast.attributes.get("forecast",[]) if forecast else [])[:3]:
             try:
@@ -57,7 +79,7 @@ class Engine(DataUpdateCoordinator):
         cheap=bool(safe and price<=c["cheap"] and cold is not None and cold<5)
         boost=bool(safe and c["room_verified"] and not cooling and room<c["maximum"]-.2 and (solar or cheap) and out<15)
         target=round(min(c["maximum"],c["normal"]+c["boost"]) if boost else c["normal"],1)
-        reason="Sensorfejl eller alarm – ingen nye boosts" if not safe else "Nilan køler – ingen ekstra rumvarme" if cooling else "Soloverskud – forvarmning" if boost and solar else "Billig strøm og koldt vejr – forvarmning" if boost else "Normal lokal regulering"
+        reason=("Blokeret: " + "; ".join(faults[:2]) + (f"; +{len(faults)-2} yderligere" if len(faults)>2 else "")) if not safe else "Nilan køler – ingen ekstra rumvarme" if cooling else "Soloverskud – forvarmning" if boost and solar else "Billig strøm og koldt vejr – forvarmning" if boost else "Normal lokal regulering"
         hpstate=self.state("hp")
         try:
             current=float(hpstate.attributes.get("temperature"))
@@ -74,4 +96,4 @@ class Engine(DataUpdateCoordinator):
             except Exception as e: log.append("Varmtvandskommando ikke bekræftet: "+str(e)[:100])
         if m.get("reason")!=reason: log.append(dt_util.now().isoformat(timespec="minutes")+" "+reason)
         m["reason"]=reason; m["log"]=log[-30:]; await self.store.async_save(m)
-        return {"status":reason,"solar":solar,"export":export,"pv":pv,"hp_power":hp,"target":target,"price":price,"room":room,"water":water,"forecast_low":cold,"cooling_rate":m.get("cooling_rate"),"nilan":nilan.state if nilan else None,"log":m["log"],"manual_hold":m.get("manual_hold",False)}
+        return {"status":reason,"solar":solar,"export":export,"pv":pv,"hp_power":hp,"target":target,"price":price,"room":room,"water":water,"forecast_low":cold,"cooling_rate":m.get("cooling_rate"),"nilan":nilan.state if nilan else None,"log":m["log"],"manual_hold":m.get("manual_hold",False),"faults":faults}
