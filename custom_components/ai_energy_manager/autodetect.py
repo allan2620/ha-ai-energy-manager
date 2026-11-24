@@ -45,9 +45,9 @@ def _suitable(field, state):
     if field in ("grid", "pv", "hp_power", "heat_output"):
         return unit in ("W", "kW")
     if field in ("room", "outdoor", "water"):
-        return unit in ("°C", "°F")
+        return unit == "°C"
     if field == "price":
-        return unit in ("DKK/kWh", "kr/kWh", "DKK/MWh", "EUR/kWh")
+        return unit in ("DKK/kWh", "kr/kWh")
     return True
 
 
