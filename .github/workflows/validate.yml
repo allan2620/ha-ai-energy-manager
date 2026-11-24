@@ -1,0 +1,22 @@
+name: Validate AI Energy Manager
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax-and-planner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Check all Python files compile
+        run: python -m compileall -q custom_components tests
+      - name: Check frontend JavaScript parses
+        run: node --check custom_components/ai_energy_manager/frontend/ai-energy-panel.js
+      - name: Validate manifest
+        run: python -m json.tool custom_components/ai_energy_manager/manifest.json > /dev/null
+      - name: Test advisory planner
+        run: python -m unittest discover -s tests -v
