@@ -524,7 +524,14 @@ class AIEnergyPanel extends HTMLElement {
 
     const pv = demo ? 2900 : this.n(this.getKpiSensor("solar","sensor.danfoss_tlx_pro_241202n272_grid_power_total"));
     const grid = demo ? 1400 : this.n(this.getKpiSensor("grid","sensor.p1_meter_power"));
-    const hpPower = demo ? 2100 : ((v) => v === null ? null : v * 1000)(this.n(this.getKpiSensor("hp","sensor.hp_power_consumption")));
+    const hpEntity=this.getKpiSensor("hp","sensor.hp_power_consumption");
+    const rawHp=this.n(hpEntity);
+    const hpUnit=this.st(hpEntity)?.attributes?.unit_of_measurement;
+    const hpPower = demo ? 2100 : (
+      rawHp === null ? null :
+      hpUnit === "kW" ? rawHp*1000 :
+      hpUnit === "W" ? rawHp : null
+    );
     const price = demo ? 2.70 : this.n(this.getKpiSensor("price","sensor.energi_data_service"));
     const outdoor = demo ? -0.9 : (this.n(this.getKpiSensor("weather","sensor.hp_outdoor")) ?? this.a("weather.forecast_hjem", "temperature"));
     const room = demo ? 21.2 : this.n("sensor.boiler_room_nilan_user_panel_temperature_t15");
