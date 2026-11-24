@@ -14,6 +14,8 @@ from homeassistant.util import dt as dt_util
 from .const import DEFAULTS
 from .planner import as_float, make_plan, price_slots, weather_slots
 from .pv_forecast import parse_pv_forecast, pv_summary
+from .energy_strategy import (bounded_number, presence_state, dhw_demand_update,
+                              coordinate_plan, suggested_hot_water_time)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -225,6 +227,49 @@ class Engine(DataUpdateCoordinator):
             boost=cfg["boost"], mode=cfg.get("energy_mode", "normal"),
             nominal_kw=cfg.get("nominal_hp_kw", 2.5), pv=pv_forecast,
         )
+        # Optional local sensors. These are observations, never prerequisites
+        # for safety decisions, and absent entities must stay unknown.
+        def optional_read(key, lower, upper, units):
+            entity_id = cfg.get(key)
+            if not entity_id:
+                return None
+            item = self.hass.states.get(entity_id)
+            if item is None:
+                return None
+            unit = item.attributes.get("unit_of_measurement")
+            if unit not in units:
+                return None
+            value = bounded_number(item.state, lower, upper)
+            if value is None:
+                return None
+            return value * 1000 if unit == "kW" else value
+
+        presence_id = cfg.get("presence_entity", "")
+        presence = presence_state(self.hass.states.get(presence_id)) if presence_id else "unknown"
+        battery_soc = optional_read("battery_soc_entity", 0, 100, ("%", None))
+        battery_power_w = optional_read("battery_power_entity", -100, 100, ("W", "kW"))
+        house_load_w = optional_read("house_load_entity", 0, 100, ("W", "kW"))
+        # Without a measured household load, don't advertise export forecast.
+        load_for_surplus = house_load_w if house_load_w is not None else None
+        hotwater_activity = dhw_demand_update(memory, dt_util.as_local(now), water)
+        coordinated = coordinate_plan(
+            planning["hours"], presence=presence, battery_soc=battery_soc,
+            nominal_load_w=load_for_surplus, room=room,
+            room_target=cfg["normal"], hotwater=water,
+            water_min=cfg["water_min"], draw_hours=hotwater_activity["counts"],
+            local_tz=dt_util.get_time_zone(self.hass.config.time_zone) or dt_util.UTC,
+        )
+        planning["hours"] = coordinated
+        advisory_dhw_slot, advisory_dhw_reason = suggested_hot_water_time(
+            coordinated, water, cfg["water_min"]
+        )
+        thermal_warning = bool(
+            room is not None and room >= cfg["normal"] + cfg.get("solar_overheat_margin", .2)
+            and any(
+                h.get("overheating_risk")
+                for h in coordinated[:3]
+            )
+        )
         cold = min(
             (f["temperature"] for k, f in forecasts.items()
              if now <= k < now + timedelta(hours=48)),
@@ -284,7 +329,7 @@ class Engine(DataUpdateCoordinator):
         mode = cfg.get("energy_mode", "normal")
         comfort_extra = bool(mode == "comfort" and safe and outdoor is not None and outdoor < 0 and room is not None and room < cfg["normal"] - .5)
         boost = bool(
-            safe and cfg["room_verified"] and not nilan_cooling
+            safe and cfg["room_verified"] and not nilan_cooling and not thermal_warning
             and mode not in ("economy", "holiday") and room < cfg["maximum"] - .2
             and (solar or cheap or predictive_preheat or comfort_extra) and outdoor < 15
             and timestamp >= memory.get("boost_blocked_until", 0)
@@ -415,8 +460,8 @@ class Engine(DataUpdateCoordinator):
 
         # Advisory DHW slot: select the lowest known price in the next 24h.
         # Do not schedule a device command; timer semantics are not verified.
-        slots = [(h["price"], h["time"]) for h in hours24 if h["price"] is not None]
-        dhw_slot = min(slots, key=lambda item: item[0])[1] if slots and water is not None and water < cfg["water_min"] else None
+        dhw_slot = advisory_dhw_slot
+        dhw_reason = advisory_dhw_reason
 
         # Do not dispatch Husdata extra DHW commands automatically until the
         # integration's special duration semantics have been verified on device.
@@ -519,4 +564,11 @@ class Engine(DataUpdateCoordinator):
             "budget_24": budget_24,
             "predictive_preheat": predictive_preheat,
             "dhw_slot": dhw_slot,
+            "dhw_reason": dhw_reason,
+            "presence": presence,
+            "battery_soc": battery_soc,
+            "battery_power_w": battery_power_w,
+            "house_load_w": house_load_w,
+            "thermal_warning": thermal_warning,
+            "dhw_demand_events": hotwater_activity["events"],
         }
