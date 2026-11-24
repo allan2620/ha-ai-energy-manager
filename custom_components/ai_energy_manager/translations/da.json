@@ -1,0 +1,136 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AI Energy Manager – opsætning",
+        "description": "Vælg sensorer og kontrollér de automatisk foreslåede værdier. Testtilstand er slået til som standard.",
+        "data": {
+          "grid": "P1-elmåler (nettoeffekt)",
+          "pv": "Solcelleproduktion (effekt)",
+          "hp_power": "IVT strømforbrug",
+          "room": "Indendørs temperaturføler",
+          "outdoor": "Udetemperatur",
+          "water": "Varmtvandstemperatur",
+          "price": "Elpris",
+          "weather": "Vejrprognose-sensor",
+          "weather_entity": "Vejrentitet til timeprognose",
+          "pv_forecast_entry": "Forecast.Solar-anlæg (valgfrit)",
+          "hp": "IVT rumsetpunkt",
+          "dhw": "IVT ekstra varmtvand",
+          "nilan": "Nilan ventilation",
+          "normal": "Normal rumtemperatur (°C)",
+          "maximum": "Maks. rumtemperatur (°C)",
+          "boost": "Maks. temperaturboost (°C)",
+          "start_w": "Soloverskud til start (W)",
+          "stop_w": "Soloverskud til stop (W)",
+          "cheap": "Grænse for billig el (DKK/kWh)",
+          "water_min": "Grænse for lav varmtvandstemperatur (°C)",
+          "export_positive": "Positiv P1-effekt betyder eksport",
+          "room_verified": "Rumtemperaturføler er kontrolleret",
+          "write_heat": "Tillad regulering af rumsetpunkt",
+          "write_water": "Tillad regulering af varmtvand (ikke aktiv)",
+          "test_mode": "Testtilstand – ingen styringskommandoer",
+          "energy_mode": "Energiprofil",
+          "min_boost_minutes": "Pause efter kompressorskift (minutter)",
+          "nominal_hp_kw": "Nominel IVT-effekt (kW)",
+          "future_price_jump": "Prisforskel for planlagt forvarmning",
+          "max_boost_minutes": "Maksimal boostvarighed (minutter)",
+          "heat_output": "Målt varmeeffekt til COP (valgfrit)",
+          "notify_energy": "Energimeddelelser",
+          "high_import_w": "Grænse for høj netimport (W)",
+          "solar_notify_w": "Grænse for soloverskud (W)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "menu_options": {
+          "edit": "Rediger indstillinger",
+          "autodetect": "Auto Detect – find sensorer"
+        }
+      },
+      "edit": {
+        "title": "Rediger indstillinger",
+        "description": "Vælg entities fra dine eksisterende Home Assistant-enheder.",
+        "data": {
+          "grid": "P1-elmåler (nettoeffekt)",
+          "pv": "Solcelleproduktion (effekt)",
+          "hp_power": "IVT strømforbrug",
+          "room": "Indendørs temperaturføler",
+          "outdoor": "Udetemperatur",
+          "water": "Varmtvandstemperatur",
+          "price": "Elpris",
+          "weather": "Vejrprognose-sensor",
+          "weather_entity": "Vejrentitet til timeprognose",
+          "pv_forecast_entry": "Forecast.Solar-anlæg (valgfrit)",
+          "hp": "IVT rumsetpunkt",
+          "dhw": "IVT ekstra varmtvand",
+          "nilan": "Nilan ventilation",
+          "normal": "Normal rumtemperatur (°C)",
+          "maximum": "Maks. rumtemperatur (°C)",
+          "boost": "Maks. temperaturboost (°C)",
+          "start_w": "Soloverskud til start (W)",
+          "stop_w": "Soloverskud til stop (W)",
+          "cheap": "Grænse for billig el (DKK/kWh)",
+          "water_min": "Grænse for lav varmtvandstemperatur (°C)",
+          "export_positive": "Positiv P1-effekt betyder eksport",
+          "room_verified": "Rumtemperaturføler er kontrolleret",
+          "write_heat": "Tillad regulering af rumsetpunkt",
+          "write_water": "Tillad regulering af varmtvand (ikke aktiv)",
+          "test_mode": "Testtilstand – ingen styringskommandoer",
+          "energy_mode": "Energiprofil",
+          "min_boost_minutes": "Pause efter kompressorskift (minutter)",
+          "nominal_hp_kw": "Nominel IVT-effekt (kW)",
+          "future_price_jump": "Prisforskel for planlagt forvarmning",
+          "max_boost_minutes": "Maksimal boostvarighed (minutter)",
+          "heat_output": "Målt varmeeffekt til COP (valgfrit)",
+          "notify_energy": "Energimeddelelser",
+          "high_import_w": "Grænse for høj netimport (W)",
+          "solar_notify_w": "Grænse for soloverskud (W)"
+        }
+      },
+      "autodetect": {
+        "title": "Automatisk registrering",
+        "description": "Forslagene er ikke gemt endnu. Kontrollér især P1, rumføler og IVT, før du gemmer.",
+        "data": {
+          "grid": "P1-elmåler (nettoeffekt)",
+          "pv": "Solcelleproduktion (effekt)",
+          "hp_power": "IVT strømforbrug",
+          "room": "Indendørs temperaturføler",
+          "outdoor": "Udetemperatur",
+          "water": "Varmtvandstemperatur",
+          "price": "Elpris",
+          "weather": "Vejrprognose-sensor",
+          "weather_entity": "Vejrentitet til timeprognose",
+          "pv_forecast_entry": "Forecast.Solar-anlæg (valgfrit)",
+          "hp": "IVT rumsetpunkt",
+          "dhw": "IVT ekstra varmtvand",
+          "nilan": "Nilan ventilation",
+          "normal": "Normal rumtemperatur (°C)",
+          "maximum": "Maks. rumtemperatur (°C)",
+          "boost": "Maks. temperaturboost (°C)",
+          "start_w": "Soloverskud til start (W)",
+          "stop_w": "Soloverskud til stop (W)",
+          "cheap": "Grænse for billig el (DKK/kWh)",
+          "water_min": "Grænse for lav varmtvandstemperatur (°C)",
+          "export_positive": "Positiv P1-effekt betyder eksport",
+          "room_verified": "Rumtemperaturføler er kontrolleret",
+          "write_heat": "Tillad regulering af rumsetpunkt",
+          "write_water": "Tillad regulering af varmtvand (ikke aktiv)",
+          "test_mode": "Testtilstand – ingen styringskommandoer",
+          "energy_mode": "Energiprofil",
+          "min_boost_minutes": "Pause efter kompressorskift (minutter)",
+          "nominal_hp_kw": "Nominel IVT-effekt (kW)",
+          "future_price_jump": "Prisforskel for planlagt forvarmning",
+          "max_boost_minutes": "Maksimal boostvarighed (minutter)",
+          "heat_output": "Målt varmeeffekt til COP (valgfrit)",
+          "notify_energy": "Energimeddelelser",
+          "high_import_w": "Grænse for høj netimport (W)",
+          "solar_notify_w": "Grænse for soloverskud (W)"
+        }
+      }
+    }
+  }
+}
