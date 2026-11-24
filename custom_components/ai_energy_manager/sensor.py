@@ -21,6 +21,11 @@ METRICS = [
     ("dhw_suggestion","Anbefaler ekstra varmtvand",None),
     ("nilan_cooling","Nilan køling aktiv",None),
     ("plan","Plan næste 48 timer",None),
+    ("pv_forecast_status","PV prognose status",None),
+    ("pv_forecast_hours","PV prognose timer","h"),
+    ("pv_today_remaining_kwh","PV rest i dag","kWh"),
+    ("pv_tomorrow_kwh","PV i morgen","kWh"),
+    ("pv_peak_w","PV forventet top","W"),
     ("cop","COP målt",None),
     ("budget_24","Budget 24 timer ved konstant belastning","DKK"),
     ("predictive_preheat","Forvarmning før dyr strøm",None),
@@ -72,12 +77,18 @@ class Metric(CoordinatorEntity, SensorEntity):
                 "ekstra_varmtvand_foreslået": data.get("dhw_suggestion", False),
                 "plan_timer_med_pris": data.get("price_hours", 0),
                 "plan_timer_med_vejr": data.get("weather_hours", 0),
+                "plan_timer_med_pv": data.get("pv_forecast_hours", 0),
+                "pv_prognose_status": data.get("pv_forecast_status"),
             }
         if self.key == "plan":
             return {
                 "plan": data.get("plan", []),
                 "pristimer": data.get("price_hours", 0),
                 "vejrtimer": data.get("weather_hours", 0),
+                "pvtimer": data.get("pv_forecast_hours", 0),
+                "pvstatus": data.get("pv_forecast_status"),
+                "pv_rest_i_dag": data.get("pv_today_remaining_kwh"),
+                "pv_i_morgen": data.get("pv_tomorrow_kwh"),
                 "bemærkning": data.get("plan_note"),
             }
         return None
