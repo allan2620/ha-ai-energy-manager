@@ -37,16 +37,40 @@ class Engine(DataUpdateCoordinator):
         return self.hass.states.get(self.c[key])
 
     def num(self, key):
+        """Read a sensor only with a compatible unit and plausible value.
+
+        A wrong entity may be selected in the new entity picker. Never use an
+        unverified unit to produce IVT write commands or economic forecasts.
+        """
         try:
             state = self.state(key)
             val = float(state.state)
             if not math.isfinite(val):
                 return None
+            unit = state.attributes.get("unit_of_measurement")
             if key in ("grid", "pv", "hp_power"):
-                unit = state.attributes.get("unit_of_measurement")
                 if unit not in ("W", "kW"):
                     return None
                 val *= 1000 if unit == "kW" else 1
+                if key != "grid" and not 0 <= val <= 100000:
+                    return None
+                if key == "grid" and not -100000 <= val <= 100000:
+                    return None
+            elif key in ("room", "outdoor", "water"):
+                if unit != "°C":
+                    return None
+                low, high = {
+                    "room": (5, 40),
+                    "outdoor": (-45, 55),
+                    "water": (0, 95),
+                }[key]
+                if not low <= val <= high:
+                    return None
+            elif key == "price":
+                if unit not in ("DKK/kWh", "kr/kWh"):
+                    return None
+                if not -10 <= val <= 50:
+                    return None
             return val
         except (TypeError, ValueError, AttributeError):
             return None
