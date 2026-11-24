@@ -28,4 +28,7 @@ DEFAULTS = {
     "energy_mode": "normal",
     "min_boost_minutes": 30,
     "nominal_hp_kw": 2.5,
+    "future_price_jump": 0.8,
+    "max_boost_minutes": 120,
+    "heat_output": "",
 }
