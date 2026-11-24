@@ -35,6 +35,12 @@ class CoordinationTests(unittest.TestCase):
                                  battery_soc=None,nominal_load_w=None)
         self.assertIsNone(plan[0]["estimated_surplus_w"])
         self.assertEqual(plan[0]["battery_advice"],"Ikke tilsluttet")
+    def test_low_battery_prefers_storage_without_device_action(self):
+        result=mod.coordinate_plan(self.hours,battery_soc=10,room=19,room_target=20)
+        self.assertIn("Batteriet er lavt",result[0]["heat_advice"])
+        self.assertEqual(result[0]["presence_now"],"unknown")
+        self.assertTrue(result[0]["suggested_only"])
+
     def test_low_hotwater_is_never_scheduled_later(self):
         slot,reason=mod.suggested_hot_water_time(self.hours,42,48)
         self.assertIsNone(slot)
