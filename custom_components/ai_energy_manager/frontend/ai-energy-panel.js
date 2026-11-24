@@ -28,7 +28,7 @@ class AIEnergyPanel extends HTMLElement {
       if (!this._deferredRenderTimer) {
         this._deferredRenderTimer = setTimeout(() => {
           this._deferredRenderTimer = null;
-          this.render();
+          if (!this.editMode) this.render();
         }, 200);
       }
     });
