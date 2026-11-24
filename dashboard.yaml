@@ -1,0 +1,36 @@
+title: AI Energy
+views:
+  - title: Overblik
+    theme: Nordic Night AI
+    cards:
+      - type: entities
+        title: AI beslutning og energi
+        entities:
+          - sensor.ai_energy_manager_status
+          - sensor.ai_energy_manager_eksport
+          - sensor.ai_energy_manager_solproduktion
+          - sensor.ai_energy_manager_ivt_effekt
+          - sensor.ai_energy_manager_anbefalet_rumsetpunkt
+          - sensor.ai_energy_manager_elpris
+          - sensor.ai_energy_manager_rumtemperatur
+          - sensor.ai_energy_manager_varmtvand
+          - sensor.ai_energy_manager_prognose_minimum
+          - sensor.ai_energy_manager_observeret_afkoling
+          - sensor.ai_energy_manager_nilan_status
+      - type: markdown
+        title: Beslutningslog
+        content: >-
+          {% for line in state_attr('sensor.ai_energy_manager_status','beslutninger') or [] %}
+          {{ line }}<br>
+          {% endfor %}
+      - type: thermostat
+        entity: climate.boiler_room_nilan_hvac
+      - type: weather-forecast
+        entity: weather.forecast_hjem
+      - type: entities
+        title: IVT
+        entities:
+          - climate.hp_room_temp_setpoint
+          - climate.hp_extra_warm_water
+          - sensor.hp_warm_water_1_top
+          - binary_sensor.hp_compressor
