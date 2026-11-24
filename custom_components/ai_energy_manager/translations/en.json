@@ -1,0 +1,136 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AI Energy Manager setup",
+        "description": "Select sensors and review suggested entities. Test mode is enabled by default.",
+        "data": {
+          "grid": "P1 meter (net grid power)",
+          "pv": "Solar production (power)",
+          "hp_power": "Heat pump electrical consumption",
+          "room": "Indoor temperature sensor",
+          "outdoor": "Outdoor temperature",
+          "water": "Hot water temperature",
+          "price": "Electricity price",
+          "weather": "Weather forecast sensor",
+          "weather_entity": "Weather entity for hourly forecast",
+          "pv_forecast_entry": "Forecast.Solar configuration (optional)",
+          "hp": "Heat pump room setpoint",
+          "dhw": "Extra hot water entity",
+          "nilan": "Nilan ventilation",
+          "normal": "Normal room temperature (°C)",
+          "maximum": "Maximum room temperature (°C)",
+          "boost": "Maximum temperature boost (°C)",
+          "start_w": "Solar surplus start threshold (W)",
+          "stop_w": "Solar surplus stop threshold (W)",
+          "cheap": "Cheap electricity threshold (DKK/kWh)",
+          "water_min": "Low hot water temperature threshold (°C)",
+          "export_positive": "Positive P1 power means export",
+          "room_verified": "Indoor sensor has been verified",
+          "write_heat": "Allow room setpoint control",
+          "write_water": "Allow hot water control (not implemented)",
+          "test_mode": "Test mode – no device commands",
+          "energy_mode": "Energy profile",
+          "min_boost_minutes": "Pause after compressor change (minutes)",
+          "nominal_hp_kw": "Nominal heat pump power (kW)",
+          "future_price_jump": "Price difference to preheat",
+          "max_boost_minutes": "Maximum boost duration (minutes)",
+          "heat_output": "Measured heat output for COP (optional)",
+          "notify_energy": "Energy notifications",
+          "high_import_w": "High import threshold (W)",
+          "solar_notify_w": "Solar surplus notification threshold (W)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "menu_options": {
+          "edit": "Edit settings",
+          "autodetect": "Auto Detect – find sensors"
+        }
+      },
+      "edit": {
+        "title": "Edit settings",
+        "description": "Choose entities from your Home Assistant installation.",
+        "data": {
+          "grid": "P1 meter (net grid power)",
+          "pv": "Solar production (power)",
+          "hp_power": "Heat pump electrical consumption",
+          "room": "Indoor temperature sensor",
+          "outdoor": "Outdoor temperature",
+          "water": "Hot water temperature",
+          "price": "Electricity price",
+          "weather": "Weather forecast sensor",
+          "weather_entity": "Weather entity for hourly forecast",
+          "pv_forecast_entry": "Forecast.Solar configuration (optional)",
+          "hp": "Heat pump room setpoint",
+          "dhw": "Extra hot water entity",
+          "nilan": "Nilan ventilation",
+          "normal": "Normal room temperature (°C)",
+          "maximum": "Maximum room temperature (°C)",
+          "boost": "Maximum temperature boost (°C)",
+          "start_w": "Solar surplus start threshold (W)",
+          "stop_w": "Solar surplus stop threshold (W)",
+          "cheap": "Cheap electricity threshold (DKK/kWh)",
+          "water_min": "Low hot water temperature threshold (°C)",
+          "export_positive": "Positive P1 power means export",
+          "room_verified": "Indoor sensor has been verified",
+          "write_heat": "Allow room setpoint control",
+          "write_water": "Allow hot water control (not implemented)",
+          "test_mode": "Test mode – no device commands",
+          "energy_mode": "Energy profile",
+          "min_boost_minutes": "Pause after compressor change (minutes)",
+          "nominal_hp_kw": "Nominal heat pump power (kW)",
+          "future_price_jump": "Price difference to preheat",
+          "max_boost_minutes": "Maximum boost duration (minutes)",
+          "heat_output": "Measured heat output for COP (optional)",
+          "notify_energy": "Energy notifications",
+          "high_import_w": "High import threshold (W)",
+          "solar_notify_w": "Solar surplus notification threshold (W)"
+        }
+      },
+      "autodetect": {
+        "title": "Automatic entity detection",
+        "description": "Suggestions are not yet saved. Verify grid meter, room sensor and heat pump before saving.",
+        "data": {
+          "grid": "P1 meter (net grid power)",
+          "pv": "Solar production (power)",
+          "hp_power": "Heat pump electrical consumption",
+          "room": "Indoor temperature sensor",
+          "outdoor": "Outdoor temperature",
+          "water": "Hot water temperature",
+          "price": "Electricity price",
+          "weather": "Weather forecast sensor",
+          "weather_entity": "Weather entity for hourly forecast",
+          "pv_forecast_entry": "Forecast.Solar configuration (optional)",
+          "hp": "Heat pump room setpoint",
+          "dhw": "Extra hot water entity",
+          "nilan": "Nilan ventilation",
+          "normal": "Normal room temperature (°C)",
+          "maximum": "Maximum room temperature (°C)",
+          "boost": "Maximum temperature boost (°C)",
+          "start_w": "Solar surplus start threshold (W)",
+          "stop_w": "Solar surplus stop threshold (W)",
+          "cheap": "Cheap electricity threshold (DKK/kWh)",
+          "water_min": "Low hot water temperature threshold (°C)",
+          "export_positive": "Positive P1 power means export",
+          "room_verified": "Indoor sensor has been verified",
+          "write_heat": "Allow room setpoint control",
+          "write_water": "Allow hot water control (not implemented)",
+          "test_mode": "Test mode – no device commands",
+          "energy_mode": "Energy profile",
+          "min_boost_minutes": "Pause after compressor change (minutes)",
+          "nominal_hp_kw": "Nominal heat pump power (kW)",
+          "future_price_jump": "Price difference to preheat",
+          "max_boost_minutes": "Maximum boost duration (minutes)",
+          "heat_output": "Measured heat output for COP (optional)",
+          "notify_energy": "Energy notifications",
+          "high_import_w": "High import threshold (W)",
+          "solar_notify_w": "Solar surplus notification threshold (W)"
+        }
+      }
+    }
+  }
+}
