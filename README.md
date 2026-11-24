@@ -1,4 +1,4 @@
-# AI Energy Manager 2.1.2 – Nordic Night
+# AI Energy Manager 2.1.3 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
@@ -89,3 +89,22 @@ Opsætning og Konfigurer anvender nu Home Assistants indbyggede søgbare entity-
 - Scanner alene Home Assistants lokale liste over registrerede entities, uden netværkssøgning og uden automatiske styringskommandoer.
 - Ved tvetydige træffere vælges ingen vilkårlig sensor. Kontrollér især Nilan T15/T3, Husdata, elmålerens fortegn og om `room_verified` skal være aktiveret. Automatisk styring slås aldrig til af en scanning.
 - Der findes ikke automatisk COP-beregning uden en særskilt korrekt termisk effektmåling.
+
+## Version 2.1.3 – gennemgang og fejlrettelser
+
+Gennemgået og rettet efter den tomme opsætningsmenu:
+
+- Manglende `strings.json` og danske/engelske oversættelser til **Konfigurer**, **Rediger indstillinger** og **Auto Detect** samt samtlige formularfelter.
+- Auto Detect afviser ukendte måleenheder, enheder med forkert type og tvetydige sensorforslag.
+- Manuel eller automatisk ændring af en kritisk sensorbinding (bl.a. rumføler, IVT eller P1) **sætter testtilstand til** og slår hardware-skriveadgang fra, indtil brugeren aktivt har bekræftet og sat den til igen.
+- Måleværdier kontrolleres for rigtige enheder og plausible intervaller før beslutninger: °C, W/kW og DKK/kWh; negative elpriser håndteres korrekt.
+- Ved ukendt IVT-alarm/kompressorstatus sendes der ingen rumsetpunktkommandoer.
+- Valgfri COP- eller Forecast.Solar-sensor kan nu ryddes korrekt i indstillingerne.
+- Simulering kan ikke udløse ændring af energiprofil eller ophæve manuel varmepause.
+- IVT-effekt i dashboardet håndterer både W og kW.
+- Browsereditoren bevarer sine felter, når input mister fokus.
+- Frontendens statiske HTTP-filer registreres kun én gang, så en ændring i opsætningen ikke prøver at registrere samme URL igen.
+- PV-prognosen for *resten af dagen* fratrækker den del af den aktuelle time, som allerede er gået.
+- Testene omfatter nu også måleenheder, migration, oversættelser, manuel sensorudskiftning og PV-timesummer.
+
+**Begrænsning:** GitHub Actions validerer syntaks og de tests, der er skrevet til dette projekt. Integrationens reelle drift mod din specifikke Home Assistant, Husdata og Nilan er ikke testet her. Hold `test_mode=true`, indtil sensorstatus, P1-fortegn og IVT-setpunkter er verificeret på anlægget. Reboot efter HACS-opdatering, og opdater siden med Ctrl+F5.
