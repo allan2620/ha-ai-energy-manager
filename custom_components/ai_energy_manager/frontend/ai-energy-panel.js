@@ -105,7 +105,7 @@ class AIEnergyPanel extends HTMLElement {
       '<div class="flowbox"><ha-icon icon="mdi:water-boiler"></ha-icon><div>Varmtvand<strong>'+this.fmt(water)+' °C · '+(extra>0?"Ekstra varmtvand valgt":"Normal drift")+'</strong></div></div>'+
       '<div class="flowbox"><ha-icon icon="mdi:fan"></ha-icon><div>Nilan<strong>'+this.esc(nilan||"Ukendt")+' · ventilation</strong></div></div></div>'+
       '</div>';
-    this.shadowRoot.innerHTML=String.raw\`
+    this.shadowRoot.innerHTML=String.raw`
 <style>
 :host{display:block;min-height:100vh;background:#0b1421;color:#e5edf7;font:14px/1.45 Roboto,Arial,sans-serif;--bg:#18283b;--edge:#344b61;--ice:#88c0d0;--green:#a3be8c;--yellow:#ebcb8b}
 *{box-sizing:border-box}main{max-width:1700px;margin:auto;padding:18px 22px 25px}ha-icon{color:var(--ice);--mdc-icon-size:25px}
@@ -145,25 +145,25 @@ h2{font-size:17px;margin:0 0 13px;display:flex;gap:9px;align-items:center}h2 ha-
 <ha-icon icon="mdi:brain" style="--mdc-icon-size:35px"></ha-icon>
 <div><h1>AI Energy Manager</h1><p>Nordic Night · Samlet energistyring</p></div>
 <div class="spacer"></div>
-\${demo?'<span class="demo-label">SIMULATION · ingen kommandoer sendes</span>':'<span class="muted">LIVE · data fra Home Assistant</span>'}
-<button id="simulate" class="\${demo?'active':''}"><ha-icon icon="mdi:play-circle-outline"></ha-icon>\${demo?'Afslut simulation':'Simulér drift'}</button>
+${demo?'<span class="demo-label">SIMULATION · ingen kommandoer sendes</span>':'<span class="muted">LIVE · data fra Home Assistant</span>'}
+<button id="simulate" class="${demo?'active':''}"><ha-icon icon="mdi:play-circle-outline"></ha-icon>${demo?'Afslut simulation':'Simulér drift'}</button>
 <a class="action" href="/config/integrations"><ha-icon icon="mdi:cog-outline"></ha-icon>Indstillinger</a>
 </header>
 <div class="grid-kpi">
-\${this.kpi("mdi:solar-power","Solproduktion",pvFormatted,"Danfoss TLX","amber")}
-\${this.kpi("mdi:transmission-tower","Elnet",gridFormatted,netLabel,net>0?"red":"green")}
-\${this.kpi("mdi:heat-pump","IVT varmepumpe",hpFormatted,on?"Kompressor aktiv":"Aktuel effekt")}
-\${this.kpi("mdi:fan","Nilan ventilation",this.esc(nilan||"—"),"Ventilatortrin "+this.esc(fan??"—"),"green")}
-\${this.kpi("mdi:cash","Elpris",this.fmt(price,2)+" kr","DK1 · pr. kWh","amber")}
-\${this.kpi("mdi:thermometer","Udetemperatur",this.fmt(outdoor)+" °C","Aktuel måling")}
+${this.kpi("mdi:solar-power","Solproduktion",pvFormatted,"Danfoss TLX","amber")}
+${this.kpi("mdi:transmission-tower","Elnet",gridFormatted,netLabel,net>0?"red":"green")}
+${this.kpi("mdi:heat-pump","IVT varmepumpe",hpFormatted,on?"Kompressor aktiv":"Aktuel effekt")}
+${this.kpi("mdi:fan","Nilan ventilation",this.esc(nilan||"—"),"Ventilatortrin "+this.esc(fan??"—"),"green")}
+${this.kpi("mdi:cash","Elpris",this.fmt(price,2)+" kr","DK1 · pr. kWh","amber")}
+${this.kpi("mdi:thermometer","Udetemperatur",this.fmt(outdoor)+" °C","Aktuel måling")}
 </div>
 <section class="panel hero">
-<div class="decision \${statusColor}">\${this.esc(status)}</div>
-\${flow}
+<div class="decision ${statusColor}">${this.esc(status)}</div>
+${flow}
 <p class="hero-foot">Energiflowet viser målte effekter og driftstilstande. Pilene er illustrative og udgør ikke en måling af individuel strømfordeling.</p>
 </section>
 <div class="middle">
-\${this.panel("IVT + varmtvand","mdi:radiator",
+${this.panel("IVT + varmtvand","mdi:radiator",
 '<div class="content-cols"><div>'+
 this.line("Rumtemperatur (T15)",this.fmt(room)+" °C")+
 this.line("IVT rumsetpunkt",this.fmt(temp)+" °C")+
@@ -173,7 +173,7 @@ this.line("Varmtvand top",this.fmt(water)+" °C")+
 this.line("Stoptemperatur",this.fmt(waterTarget)+" °C")+
 this.line("Ekstra varmtvand",extra===null?"Ukendt":extra>0?this.fmt(Number(extra),0)+" min":"Ikke aktiv")+
 '</div><div class="minichart"><svg viewBox="0 0 350 130" aria-label="Illustration af temperaturforløb"><path d="M5 20H345M5 50H345M5 80H345M5 110H345" stroke="#38526b" stroke-width="1"/><path d="M5 25C50 26 60 20 95 21S155 20 195 17 255 13 345 15" fill="none" stroke="#b48ead" stroke-width="3"/><path d="M5 77C45 75 75 73 100 76S170 72 195 74 280 69 345 70" fill="none" stroke="#a3be8c" stroke-width="3"/><path d="M5 105C50 104 95 102 140 104S245 101 345 102" fill="none" stroke="#88c0d0" stroke-width="3"/><text x="8" y="126" fill="#99aec0" font-size="11">Visuel illustration – ikke historiske sensordata</text></svg></div></div>')}
-\${this.panel("Nilan ventilation","mdi:fan",
+${this.panel("Nilan ventilation","mdi:fan",
 '<div class="content-cols"><div>'+
 this.line("Drift",nilan||"Ukendt")+
 this.line("Ventilatortrin",fan??"—")+
@@ -184,18 +184,18 @@ this.line("Varmegenvinding",this.fmt(efficiency)+" %")+
 '</div><div class="vent-graphic"><ha-icon icon="mdi:home-thermometer-outline" style="--mdc-icon-size:95px;color:#92b6d5"></ha-icon><div style="margin-top:8px;color:#a3be8c">Varmegenvinding · ventilation</div><small class="muted">IVT-beslutning tager højde for aktiv køling i Nilan</small></div></div>')}
 </div>
 <div class="bottom">
-\${this.panel("Sol & strøm","mdi:white-balance-sunny",
+${this.panel("Sol & strøm","mdi:white-balance-sunny",
 '<div class="muted">Produktion i dag</div><div class="statbig">'+this.fmt(today,2)+' kWh</div>'+
 this.line("Aktuel produktion",pvFormatted)+
 this.line("Netto på elnettet",gridFormatted+' '+netLabel.toLowerCase()))}
-\${this.panel("Vejrudsigt","mdi:weather-partly-cloudy",'<div class="forecast-days">'+this.weatherCards()+'</div>')}
-\${this.panel("Elpris & plan","mdi:chart-bar",this.chart(prices,new Date().getHours())+
+${this.panel("Vejrudsigt","mdi:weather-partly-cloudy",'<div class="forecast-days">'+this.weatherCards()+'</div>')}
+${this.panel("Elpris & plan","mdi:chart-bar",this.chart(prices,new Date().getHours())+
 '<p class="muted" style="font-size:12px;margin:8px 0 0">DK1 priser i dag · grøn = lav, gul = mellem, rød = høj</p>')}
-\${this.panel("Hvad sker der nu?","mdi:clipboard-text-outline",
+${this.panel("Hvad sker der nu?","mdi:clipboard-text-outline",
 logLines.length?logLines.map(x=>'<div class="event">'+this.esc(x)+'</div>').join(""):'<div class="empty">Ingen beslutningshistorik endnu</div>')}
 </div>
-<div class="foot"><span>AI Energy Manager · Nordic Night · én samlet side</span><span>\${demo?'Simulerede eksempeldata · ingen påvirkning af varmeanlæg':'Live sensorer · styring afhænger af integrationens konfiguration'}</span></div>
-</main>\`;
+<div class="foot"><span>AI Energy Manager · Nordic Night · én samlet side</span><span>${demo?'Simulerede eksempeldata · ingen påvirkning af varmeanlæg':'Live sensorer · styring afhænger af integrationens konfiguration'}</span></div>
+</main>`;
     this.shadowRoot.getElementById("simulate").addEventListener("click",()=>{this.demo=!this.demo;this.render();});
     this.shadowRoot.getElementById("menu-btn").addEventListener("click",()=>this.dispatchEvent(new Event("hass-toggle-menu",{bubbles:true,composed:true})));
   }
