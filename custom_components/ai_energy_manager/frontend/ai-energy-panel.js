@@ -178,7 +178,7 @@ class AIEnergyPanel extends HTMLElement {
 
   detailGroups() {
     return {
-      solar:{title:"Solceller",ids:["sensor.danfoss_tlx_pro_241202n272_grid_power_total","sensor.danfoss_tlx_pro_241202n272_pv_power_string_1","sensor.danfoss_tlx_pro_241202n272_pv_power_string_2","sensor.danfoss_tlx_pro_241202n272_grid_energy_today_total"]},
+      solar:{title:"Solceller",ids:["sensor.danfoss_tlx_pro_241202n272_grid_power_total","sensor.danfoss_tlx_pro_241202n272_pv_power_string_1","sensor.danfoss_tlx_pro_241202n272_pv_power_string_2","sensor.danfoss_tlx_pro_241202n272_grid_energy_today_total","sensor.ai_energy_manager_pv_rest_i_dag","sensor.ai_energy_manager_pv_i_morgen"]},
       grid:{title:"Elnet og forbrug",ids:["sensor.p1_meter_power","sensor.p1_meter_power_phase_1","sensor.p1_meter_power_phase_2","sensor.p1_meter_power_phase_3","sensor.p1_meter_energy_import","sensor.p1_meter_energy_export"]},
       hp:{title:"IVT varmepumpe",ids:["binary_sensor.hp_compressor","sensor.hp_power_consumption","sensor.hp_heat_carrier_forwrd","sensor.hp_heat_carrier_return","climate.hp_room_temp_setpoint","climate.hp_heat_set_1_curvel","climate.hp_heat_set_3_parallel","binary_sensor.hp_alarm"]},
       water:{title:"Varmtvand",ids:["sensor.hp_warm_water_1_top","sensor.hp_warm_water_setpoint","climate.hp_extra_warm_water","climate.hp_warm_water_stop_temp"]},
@@ -417,6 +417,11 @@ class AIEnergyPanel extends HTMLElement {
     const entity=this.st(this.planEntity());
     const plan=Array.isArray(entity?.attributes?.plan)?entity.attributes.plan:[];
     const prices=plan.filter(x=>typeof x.price==="number").map(x=>x.price);
+    const pvStatus=entity?.attributes?.pvstatus||"Afventer Forecast.Solar";
+    const pvHours=Number(entity?.attributes?.pvtimer||0);
+    const pvRemaining=entity?.attributes?.pv_rest_i_dag;
+    const pvTomorrow=entity?.attributes?.pv_i_morgen;
+
     const minPrice=prices.length?Math.min(...prices):null;
     const maxPrice=prices.length?Math.max(...prices):null;
     const span=minPrice===null?"—":this.fmt(maxPrice-minPrice,2)+" kr/kWh";
@@ -441,27 +446,31 @@ class AIEnergyPanel extends HTMLElement {
     const cards=plan.length?plan.map((hour,index)=>{
       const price=typeof hour.price==="number"?this.fmt(hour.price,2):"—";
       const out=typeof hour.outdoor==="number"?this.fmt(hour.outdoor,1)+" °C":"—";
+      const solar=typeof hour.pv_energy_kwh==="number"?this.fmt(hour.pv_energy_kwh,2)+" kWh":"—";
       const when=new Date(hour.time);
       const title=when.toLocaleString("da-DK",{weekday:"short",hour:"2-digit",minute:"2-digit"});
       const action=hour.action||"ukendt";
       const cls=action==="billig forvarmning"?"plan-cheap":action==="undgå ekstra boost"?"plan-expensive":"";
       return '<div class="plan-hour '+cls+'" title="'+this.esc(hour.note||"")+'"><b>'+this.esc(title)+'</b>'+
-        '<strong>'+this.esc(price)+'</strong><span>'+this.esc(out)+'</span>'+
+        '<strong>'+this.esc(price)+'</strong><span>'+this.esc(out)+'</span>'+ '<span class="plan-pv">☀ '+this.esc(solar)+'</span>' +
         '<small>'+this.esc(action)+'</small></div>';
     }).join(""):'<div class="empty">Afventer timebaseret pris- og vejrplan.</div>';
     const coverage=entity?.attributes||{};
     return '<section class="panel plan-section">'+
       '<h2><ha-icon icon="mdi:calendar-clock"></ha-icon>AI-plan – 48 timer</h2>'+
-      '<p class="plan-intro">Forslag ud fra DK1-elpriser og tilgængelige vejrdata. Ingen fremtidig solproduktion er beregnet.</p>'+
+      '<p class="plan-intro">Forslag ud fra DK1-elpriser, vejr og Forecast.Solar. PV er forventet produktion – ikke sikkert overskud.</p>'+
       '<div class="plan-summary"><div><span>Prisdata</span><strong>'+this.esc(coverage.pristimer??0)+'/48 timer</strong></div>'+
       '<div><span>Vejrdata</span><strong>'+this.esc(coverage.vejrtimer??0)+'/48 timer</strong></div>'+
+      '<div><span>PV-prognose</span><strong>'+pvHours+'/48 timer</strong></div>'+
+      '<div><span>Rest i dag (PV)</span><strong>'+this.esc(typeof pvRemaining==="number"?this.fmt(pvRemaining,2)+" kWh":"—")+'</strong></div>'+
+      '<div><span>I morgen (PV)</span><strong>'+this.esc(typeof pvTomorrow==="number"?this.fmt(pvTomorrow,2)+" kWh":"—")+'</strong></div>'+
       '<div><span>Prisspænd</span><strong>'+span+'</strong></div>'+
       '<div><span>Teoretisk prisforskel pr. flyttet time (2,5 kW)</span><strong>'+projected+'</strong></div>'+
       '<div><span>Prisbudget 24 timer ved uændret nettoimport</span><strong>'+this.esc(budget&&!["unknown","unavailable"].includes(budget)?budget+" kr":"—")+'</strong></div>'+
       '<div><span>Målt COP (kræver varmemåler)</span><strong>'+this.esc(cop&&!["unknown","unavailable"].includes(cop)?cop:"—")+'</strong></div>'+
       '<div><span>Forslag til varmtvandsopvarmning</span><strong>'+this.esc(slotText)+'</strong></div></div>'+
       controls+'<div class="plan-scroll"><div class="plan-hours">'+cards+'</div></div>'+
-      '<p class="plan-note">'+this.esc(coverage["bemærkning"]||"Planen er vejledende, og besparelser er ikke målt.")+'</p>'+
+      '<p class="plan-note">'+this.esc(pvStatus)+' · '+this.esc(coverage["bemærkning"]||"Planen er vejledende, og besparelser er ikke målt.")+'</p>'+
       '</section>';
   }
 
@@ -673,6 +682,7 @@ class AIEnergyPanel extends HTMLElement {
         .plan-hour b{font-size:12px}
         .plan-hour span{font-size:12px;color:#b1c9d9}
         .plan-hour small{font-size:10px;color:#a0b6c8}
+        .plan-hour .plan-pv{color:#f5d56d;font-size:11px}
         .plan-cheap{border-color:#569c76;background:#183b31}
         .plan-expensive{border-color:#a7745f;background:#392d29}
         @media(max-width:850px){.plan-summary{grid-template-columns:repeat(2,1fr)}}
