@@ -6,10 +6,12 @@ from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from .const import DOMAIN
 from .engine import Engine
+from .dashboard_api import AIEnergyLayoutView
 
 PANEL_ROUTE = "ai-energy"
 ASSET_URL = "/ai_energy_manager_static"
 PANEL_KEY = "_ai_energy_panel_registered"
+API_KEY = "_ai_energy_dashboard_api_registered"
 
 async def _setup_panel(hass):
     if hass.data.get(PANEL_KEY):
@@ -24,12 +26,15 @@ async def _setup_panel(hass):
         hass, webcomponent_name="ai-energy-panel",
         frontend_url_path=PANEL_ROUTE,
         sidebar_title="AI Energy", sidebar_icon="mdi:brain",
-        module_url=f"{ASSET_URL}/ai-energy-panel.js?v=1.5.0",
+        module_url=f"{ASSET_URL}/ai-energy-panel.js?v=1.6.0",
         embed_iframe=False, require_admin=False,
     )
     hass.data[PANEL_KEY] = True
 
 async def async_setup_entry(hass, entry):
+    if not hass.data.get(API_KEY):
+        hass.http.register_view(AIEnergyLayoutView(hass))
+        hass.data[API_KEY] = True
     engine = Engine(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = engine
     await engine.async_config_entry_first_refresh()
