@@ -111,7 +111,7 @@ class Engine(DataUpdateCoordinator):
             and cfg["normal"] <= cfg["maximum"] <= 25
             and 0 <= cfg["boost"] <= 1
             and cfg["start_w"] > cfg["stop_w"] >= 0
-            and 0 <= cfg.get("min_boost_minutes", 30) <= 240
+            and 15 <= cfg.get("min_boost_minutes", 30) <= 240
         )
         if not limits_ok:
             faults.append("Ugyldige sikkerhedsgrænser i indstillinger")
@@ -225,6 +225,8 @@ class Engine(DataUpdateCoordinator):
         # Observe starts, not actuate compressor. Guard boost changes for minimum
         # time after compressor transitions to limit unnecessary setpoint changes.
         previous_compressor = memory.get("compressor")
+        if previous_compressor is None:
+            memory["compressor_changed"] = timestamp
         if compressor and compressor.state in ("on", "off"):
             if previous_compressor is not None and previous_compressor != compressor.state:
                 memory["compressor_changed"] = timestamp
@@ -285,6 +287,21 @@ class Engine(DataUpdateCoordinator):
             logs.append("Mulighed for ekstra varmtvand; kommando kræver verificering af Rego")
         memory["last_dhw_suggestion"] = dhw_suggestion
 
+        # New confirmed hardware alarms create an HA persistent notification once.
+        if alarm is not None and alarm.state == "on" and not memory.get("alarm_notified"):
+            try:
+                await self.hass.services.async_call(
+                    "persistent_notification", "create",
+                    {"title": "AI Energy: IVT alarm",
+                     "message": "IVT rapporterer aktiv alarm. Ekstra boost er blokeret; kontrollér Husdata og varmepumpens alarm.",
+                     "notification_id": "ai_energy_hp_alarm"},
+                    blocking=True,
+                )
+                memory["alarm_notified"] = True
+            except Exception as exc:
+                _LOGGER.warning("Could not notify about heat pump alarm: %s", exc)
+        elif alarm is not None and alarm.state == "off":
+            memory["alarm_notified"] = False
         if reason != memory.get("reason"):
             logs.append(dt_util.now().strftime("%d/%m %H:%M") + " " + reason)
         memory["reason"] = reason
