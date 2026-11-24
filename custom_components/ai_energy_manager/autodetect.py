@@ -109,4 +109,18 @@ def suggest_values(states, current=None, *, refresh_missing=False):
     # If no previous configuration was provided, detect over the built-in defaults.
     if current is None:
         values.update(found)
+    elif refresh_missing:
+        # A new physical sensor is NOT the previously verified room sensor.
+        # If the scan changes any write-critical entity, require renewed
+        # verification and explicitly return to read-only test operation.
+        critical = ("room", "hp", "grid", "pv", "hp_power", "outdoor")
+        changed = any(
+            values.get(key) != (current or {}).get(key, DEFAULTS.get(key))
+            for key in critical
+        )
+        if changed:
+            values["room_verified"] = False
+            values["write_heat"] = False
+            values["write_water"] = False
+            values["test_mode"] = True
     return values
