@@ -94,7 +94,6 @@ def coordinate_plan(plan, *, presence="unknown", battery_soc=None,
         overheating = bool(
             room is not None and room >= room_target - 0.1
             and solar_opportunity and temperature is not None
-            and temperature >= 5
         )
         windy_cold = bool(wind is not None and temperature is not None
                           and wind >= 7 and temperature <= 6)
