@@ -24,6 +24,7 @@ METRICS = [
     ("cop","COP målt",None),
     ("budget_24","Budget 24 timer ved konstant belastning","DKK"),
     ("predictive_preheat","Forvarmning før dyr strøm",None),
+    ("dhw_slot","Foreslået varmtvandstid",None),
 ]
 
 async def async_setup_entry(hass, entry, async_add_entities):
