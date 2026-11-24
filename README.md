@@ -1,4 +1,4 @@
-# AI Energy Manager 2.1.0 – Nordic Night
+# AI Energy Manager 2.1.1 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
@@ -74,3 +74,7 @@ Home Assistants indbyggede **Forecast.Solar** er nu understøttet. Den skal inst
 - Hvis Forecast.Solar mangler, fortsætter integrationen med elpris-/vejrplan og viser PV-status som manglende.
 
 Reference: https://www.home-assistant.io/actions/forecast_solar.get_forecast/
+
+
+## Version 2.1.1 – stabil betjening
+Live-opdateringer bevarer nu den vandrette 48-timers plans scrollposition og tager hensyn til brugeren, når en dropdown er aktiv. Vælg en energiprofil uden at menuen lukker på grund af sensoropdateringer. Valget bliver holdt synligt, indtil Home Assistant bekræfter den nye tilstand. Test efter HACS-opdatering og genstart.
