@@ -148,6 +148,8 @@ class Engine(DataUpdateCoordinator):
             and 0.1 <= cfg.get("future_price_jump", 0.8) <= 5
             and 3000 <= cfg.get("high_import_w", 9500.0) <= 30000
             and 500 <= cfg.get("solar_notify_w", 3000.0) <= 30000
+            and 0 <= cfg.get("solar_overheat_margin", .2) <= 1.5
+            and 0 <= cfg.get("assumed_base_load_w", 0.0) <= 30000
         )
         if not limits_ok:
             faults.append("Ugyldige sikkerhedsgrænser i indstillinger")
@@ -252,7 +254,15 @@ class Engine(DataUpdateCoordinator):
         battery_power_w = optional_read("battery_power_entity", -100000, 100000, ("W", "kW"))
         house_load_w = optional_read("house_load_entity", 0, 100000, ("W", "kW"))
         # Without a measured household load, don't advertise export forecast.
-        load_for_surplus = house_load_w if house_load_w is not None else None
+        configured_load = bounded_number(cfg.get("assumed_base_load_w"), 0, 30000)
+        load_for_surplus = house_load_w if house_load_w is not None else (
+            configured_load if configured_load and configured_load > 0 else None
+        )
+        surplus_source = (
+            "Målt husforbrug lige nu" if house_load_w is not None
+            else "Brugerangivet grundlast (ikke en fremtidsmåling)" if load_for_surplus is not None
+            else "Ukendt – ingen prognose for overskudsstrøm"
+        )
         hotwater_activity = dhw_demand_update(memory, dt_util.as_local(now), water)
         coordinated = coordinate_plan(
             planning["hours"], presence=presence, battery_soc=battery_soc,
@@ -571,6 +581,7 @@ class Engine(DataUpdateCoordinator):
             "battery_soc": battery_soc,
             "battery_power_w": battery_power_w,
             "house_load_w": house_load_w,
+            "surplus_basis": surplus_source,
             "thermal_warning": thermal_warning,
             "dhw_demand_events": hotwater_activity["events"],
         }
