@@ -35,6 +35,7 @@ METRICS = [
     ("battery_soc","Batteristand","%"),
     ("battery_power_w","Batterieffekt","W"),
     ("house_load_w","Målt husforbrug","W"),
+    ("surplus_basis","Grundlag for soloverskud",None),
     ("thermal_warning","Risiko for ekstra solopvarmning",None),
     ("dhw_demand_events","Observerede varmtvandstemperaturfald",None),
 ]
