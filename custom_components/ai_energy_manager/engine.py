@@ -355,6 +355,22 @@ class Engine(DataUpdateCoordinator):
                 _LOGGER.warning("Could not notify about heat pump alarm: %s", exc)
         elif alarm is not None and alarm.state == "off":
             memory["alarm_notified"] = False
+        # Notify on newly lost sensors only after an earlier healthy reading.
+        fault_signature = tuple(faults)
+        if not faults:
+            memory["ever_healthy"] = True
+        elif memory.get("ever_healthy") and fault_signature != tuple(memory.get("fault_signature", ())):
+            try:
+                await self.hass.services.async_call(
+                    "persistent_notification", "create",
+                    {"title": "AI Energy: sensorfejl",
+                     "message": "Automatiske sol- og prisboost er spærret. " + "; ".join(faults[:3]),
+                     "notification_id": "ai_energy_sensor_fault"},
+                    blocking=True,
+                )
+            except Exception as exc:
+                _LOGGER.debug("Sensor fault notification failed: %s", exc)
+        memory["fault_signature"] = list(fault_signature)
         if reason != memory.get("reason"):
             logs.append(dt_util.now().strftime("%d/%m %H:%M") + " " + reason)
         memory["reason"] = reason
