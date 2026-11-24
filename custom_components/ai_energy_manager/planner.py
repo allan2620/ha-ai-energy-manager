@@ -57,11 +57,11 @@ def weather_slots(hourly, now):
 
 def make_plan(now, prices, forecast, current_price, outdoor, base_temp,
               allowed=True, cheap_limit=2.3, room_target=20.0, boost=0.5,
-              nominal_kw=2.5, mode="normal"):
+              nominal_kw=2.5, mode="normal", pv=None):
     """Informational 48-hour hourly plan; control is never performed here.
 
-    Missing price/forecast data are reported explicitly. This model cannot
-    predict PV kWh because no irradiance forecast has been connected.
+    Missing price, weather, or PV forecast data remain unknown.
+    PV input comes from an external Forecast.Solar prediction, not an inferred value.
     """
     now = now.astimezone(dt_util.UTC).replace(minute=0, second=0, microsecond=0)
     plan = []
@@ -74,6 +74,9 @@ def make_plan(now, prices, forecast, current_price, outdoor, base_temp,
         if p is None and i == 0:
             p = current_price
         weather = forecast.get(moment, {})
+        pv_hour = (pv or {}).get(moment, {})
+        power = pv_hour.get("pv_power_w")
+        energy = pv_hour.get("pv_energy_kwh")
         temp = weather.get("temperature")
         if i == 0 and temp is None:
             temp = outdoor
@@ -88,32 +91,37 @@ def make_plan(now, prices, forecast, current_price, outdoor, base_temp,
             plan_action = "afventer data"
         elif need <= 1.0:
             plan_action = "ingen forvarmning"
+        elif power is not None and power >= max(1000, nominal_kw*1000) and need > 1:
+            plan_action = "solforvarmning (forslag)"
         elif low_price and need > 1:
             plan_action = "billig forvarmning"
         elif p > cheap_limit and need > 1:
             plan_action = "undgå ekstra boost"
         else:
             plan_action = "normal"
-        flexibility = bool(allowed and plan_action == "billig forvarmning"
+        flexibility = bool(allowed and plan_action in ("billig forvarmning", "solforvarmning (forslag)")
                            and mode not in ("holiday", "economy"))
         plan.append({
             "time": moment.isoformat(timespec="minutes"),
             "price": round(p, 3) if p is not None else None,
+            "pv_power_w": power, "pv_energy_kwh": energy,
             "outdoor": temp, "wind": wind, "heat_need_index": need,
             "action": plan_action,
             "recommended_target": round(min(24, room_target + boost), 1) if flexibility else round(room_target, 1),
             "potential_extra_cost": round(max(0, nominal_kw) * p, 2) if flexibility and p is not None else None,
             "automatic": False,
-            "note": "Pris- og vejrbaseret forslag; ingen solprognose eller COP-beregning",
+            "note": "Rådgivende; solprognosen er forventet produktion, ikke sikkert overskud",
         })
     present_price=sum(item["price"] is not None for item in plan)
     present_temp=sum(item["outdoor"] is not None for item in plan)
-    proposals=sum(item["action"]=="billig forvarmning" for item in plan)
+    proposals=sum(item["action"] in ("billig forvarmning", "solforvarmning (forslag)") for item in plan)
+    pv_hours=sum(item["pv_power_w"] is not None or item["pv_energy_kwh"] is not None for item in plan)
     return {
         "hours": plan,
         "price_hours": present_price, "weather_hours": present_temp,
         "suggested_heat_hours": proposals, "cheap_threshold": cheap_limit,
-        "note": "Plan er rådgivende; ingen PV-prognose, garantier eller modellerede besparelser",
+        "pv_hours": pv_hours,
+        "note": "48-timers rådgivende plan: PV er forventet produktion, ikke beregnet netto-eksport",
     }
 
 
