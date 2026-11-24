@@ -78,6 +78,41 @@ class TranslationContracts(unittest.TestCase):
         self.assertIn('disabled',js)
 
 
+class OptionsSafetyContracts(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((ROOT/"config_flow.py").read_text(encoding="utf-8"))
+        option_class=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=="Options")
+        method=next(n for n in option_class.body if isinstance(n,ast.FunctionDef) and n.name=="_save")
+        namespace={"OPTIONAL_KEYS":{"pv_forecast_entry","heat_output"}}
+        exec(compile(ast.fix_missing_locations(
+            ast.Module(body=[method],type_ignores=[])), "<options._save>", "exec"),namespace)
+        self.save=namespace["_save"]
+
+    def invoke(self, values):
+        class Fake:
+            def _values(self):
+                return {"room":"sensor.current", "grid":"sensor.p1_meter_power",
+                        "write_heat":True,"room_verified":True,"test_mode":False}
+            def async_create_entry(self, **kwargs):
+                return kwargs["data"]
+        return self.save(Fake(),values)
+
+    def test_manual_room_change_forces_safe_mode(self):
+        result=self.invoke({"room":"sensor.new", "grid":"sensor.p1_meter_power",
+                            "write_heat":True,"room_verified":True,"test_mode":False})
+        self.assertTrue(result["test_mode"])
+        self.assertFalse(result["write_heat"])
+        self.assertFalse(result["room_verified"])
+
+    def test_preserves_settings_without_critical_change(self):
+        result=self.invoke({"room":"sensor.current","grid":"sensor.p1_meter_power",
+                            "write_heat":True,"room_verified":True,"test_mode":False})
+        self.assertFalse(result["test_mode"])
+        self.assertTrue(result["write_heat"])
+        self.assertEqual(result["heat_output"], "")
+        self.assertEqual(result["pv_forecast_entry"], "")
+
+
 class MigrationContracts(unittest.TestCase):
     def test_v1_to_v2_preserves_data_and_options(self):
         root=ast.parse((ROOT/"__init__.py").read_text(encoding="utf-8"))
