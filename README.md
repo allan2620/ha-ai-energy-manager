@@ -59,3 +59,18 @@ Den grønne/blå graf i popup er historiske Recorder-data fra Home Assistant; t
 GitHub Actions kører `compileall`, `node --check` og unit tests af planlæggeren samt de sikre standardindstillinger. Det er ikke en erstatning for en reel Home Assistant-integrationstest.
 
 Repo: https://github.com/allan2620/ha-ai-energy-manager
+
+## PV-prognose – Forecast.Solar (v2.1.0)
+
+Home Assistants indbyggede **Forecast.Solar** er nu understøttet. Den skal installeres og konfigureres **separat** under Indstillinger → Enheder og tjenester → Tilføj integration → Forecast.Solar. Indtast dit anlægs faktiske kWp, panelernes retning og hældning; undgå at gætte.
+
+- Med **én** Forecast.Solar-konfiguration finder AI Energy Manager den automatisk.
+- Med **flere** Forecast.Solar-konfigurationer vælger du konfigurations-entry-ID under AI Energy Manager → Konfigurer i feltet `pv_forecast_entry`. Prognosen hentes da kun fra den valgte konfiguration; vælg den samlede anlægsopsætning, hvis det er den, du ønsker.
+- Integrationens prognose hentes via `forecast_solar.get_forecast` med `resolution: hourly`; HA kræver support for den handling (2026.9 eller nyere).
+- 48-timersplanen viser forventede PV-kWh for hver time, tilbageværende energi i dag, forventet energi i morgen og datadækning. Manglende timer forbliver ukendte, ikke nul.
+- Timer med rigelig forventet produktion kan få anbefalingen **solforvarmning (forslag)**. PV-prognosen er produceret energi, **ikke** garanteret overskudsstrøm efter husets forbrug.
+- PV-prognosen er **kun rådgivende**. Den ændrer ikke sikkerhedsgrænser eller sender nye fysiske kommandoer til IVT, Nilan eller varmtvand.
+- De nye sensorer hedder blandt andet *AI Energy Manager PV rest i dag*, *PV i morgen*, *PV forventet top*, *PV prognose timer* og *PV prognose status*.
+- Hvis Forecast.Solar mangler, fortsætter integrationen med elpris-/vejrplan og viser PV-status som manglende.
+
+Reference: https://www.home-assistant.io/actions/forecast_solar.get_forecast/
