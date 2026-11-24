@@ -45,18 +45,10 @@ def parse_pv_forecast(response, now, hours=48):
     return result
 
 
-def pv_totals(hour_map, now):
-    """Totals only if known hours exist; no zero-fill of missing periods."""
-    today = now.astimezone(dt_util.UTC).date()
-    # Today and tomorrow local dates must use Home Assistant's local time.
-    # Caller supplies local dates so DST and west/east timezone remain correct.
-    return sum(x.get("pv_energy_kwh") or 0 for x in hour_map.values())
-
-
 def pv_summary(hour_map, now, timezone):
     local_now = now.astimezone(timezone)
     today = local_now.date()
-    tomorrow = (local_now + timedelta(days=1)).date()
+    tomorrow = today + timedelta(days=1)
     today_energy = [x["pv_energy_kwh"] for when, x in hour_map.items()
                     if when.astimezone(timezone).date() == today and x.get("pv_energy_kwh") is not None]
     tomorrow_energy = [x["pv_energy_kwh"] for when, x in hour_map.items()
