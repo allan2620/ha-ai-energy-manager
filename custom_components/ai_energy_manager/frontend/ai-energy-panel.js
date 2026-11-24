@@ -573,12 +573,12 @@ class AIEnergyPanel extends HTMLElement {
     }
     const decision=this.shadowRoot.querySelector(".decision");
     if(decision){decision.dataset.detail="ai";decision.classList.add("click-more");decision.tabIndex=0;decision.setAttribute("role","button");}
-    const detail=(key)=>{if(this.detailGroups()[key]){this.selectedDetail=key;this.render();}};
+    const detail=(key)=>{if(this.detailGroups()[key]){this.selectedDetail=key;this.graphEntity=null;this.render();}};
     this.shadowRoot.querySelectorAll("[data-detail]").forEach(el=>{
       el.addEventListener("click",()=>detail(el.dataset.detail));
       el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();detail(el.dataset.detail);}});
     });
-    this.shadowRoot.querySelector("#modal-close")?.addEventListener("click",()=>{this.selectedDetail=null;this.render();});
+    this.shadowRoot.querySelector("#modal-close")?.addEventListener("click",()=>{this.selectedDetail=null;this.graphEntity=null;this.render();});
     this.shadowRoot.querySelector("#modal-backdrop")?.addEventListener("click",e=>{if(e.target.id==="modal-backdrop"){this.selectedDetail=null;this.render();}});
     this.shadowRoot.querySelectorAll("[data-moreinfo]").forEach(btn=>btn.addEventListener("click",()=>this.showMoreInfo(btn.dataset.moreinfo)));
     this.shadowRoot.querySelector("#graph-back")?.addEventListener("click",()=>{this.graphEntity=null;this.graphHistory=[];this.render();});
