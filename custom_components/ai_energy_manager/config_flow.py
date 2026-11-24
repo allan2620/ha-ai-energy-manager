@@ -8,9 +8,11 @@ from .const import DOMAIN, DEFAULTS
 ENTITY_KEYS = {
     "grid", "pv", "hp_power", "room", "outdoor", "water",
     "price", "weather", "weather_entity", "hp", "dhw", "nilan",
-    "heat_output",
+    "heat_output", "presence_entity", "battery_soc_entity",
+    "battery_power_entity", "house_load_entity",
 }
-OPTIONAL_KEYS = {"pv_forecast_entry", "heat_output"}
+OPTIONAL_KEYS = {"pv_forecast_entry", "heat_output", "presence_entity",
+                 "battery_soc_entity", "battery_power_entity", "house_load_entity"}
 
 
 def schema(values):
