@@ -423,7 +423,11 @@ class AIEnergyPanel extends HTMLElement {
     const projected=(maxPrice===null||minPrice===null)?"—":this.fmt(Math.max(0,maxPrice-minPrice)*2.5,2)+" kr";
     const mode=status?.attributes?.energiprofil||"normal";
     const options=["normal","comfort","economy","holiday"];
-    const controls='<div class="plan-policy"><label>Energiprofil: <select id="energy-mode" aria-label="Vælg energiprofil">'+
+    const manualPause=Boolean(status?.attributes?.manuel_pause);
+    const testMode=status?.attributes?.testtilstand!==false;
+    const controls='<div class="plan-policy"><span class="mode-pill">'+(testMode?"TESTTILSTAND":"STYRING KAN VÆRE AKTIV")+'</span>'+
+      (manualPause?'<span class="mode-pill warning-pill">Manuel pause aktiv</span><button id="resume-manual" type="button">Ophæv manuel pause</button>':"")+
+      '<label>Energiprofil: <select id="energy-mode" aria-label="Vælg energiprofil">'+
       options.map(x=>'<option value="'+x+'" '+(x===mode?'selected':'')+'>'+({
         normal:"Normal",comfort:"Komfort",economy:"Økonomi",holiday:"Ferie"
       }[x])+'</option>').join("")+'</select></label>'+
@@ -648,6 +652,9 @@ class AIEnergyPanel extends HTMLElement {
         .plan-summary span{display:block;color:#acc4d5;font-size:12px}
         .plan-summary strong{display:block;font-size:17px}
         .plan-policy{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
+        .mode-pill{background:#214636;color:#c8f0d1;border:1px solid #4f9974;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700}
+        .warning-pill{background:#4c372b;color:#ffd5b0;border-color:#a47655}
+        #resume-manual{background:#305070;color:#fff;border:1px solid #7c9bb4;border-radius:9px;padding:8px 11px;cursor:pointer}
         .plan-policy select{background:#18334a;color:#e2f5ff;border:1px solid #476c84;border-radius:8px;padding:9px}
         .plan-policy small{color:#99b9ce}
         .plan-scroll{overflow-x:auto;padding-bottom:8px}
@@ -817,6 +824,13 @@ class AIEnergyPanel extends HTMLElement {
       this.layout=JSON.parse(JSON.stringify(this.getLayout()));
       this.editorError="";
       this.render();
+    });
+    this.shadowRoot.querySelector("#resume-manual")?.addEventListener("click",async()=>{
+      const entity=Object.values(this._hass.states||{}).find(x=>x.entity_id.startsWith("button.ai_energy_manager_")&&
+        x.attributes?.friendly_name==="AI Energy Manager Ophæv manuel varmepause");
+      if(!entity){this.editorError="Ophæv manuel varmepause-knappen findes ikke";return;}
+      try{await this._hass.callService("button","press",{entity_id:entity.entity_id});}
+      catch(err){this.editorError=String(err?.message||err);}
     });
     this.shadowRoot.querySelector("#energy-mode")?.addEventListener("change",async(e)=>{
       const value=e.target.value;
