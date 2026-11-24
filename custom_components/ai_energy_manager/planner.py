@@ -22,7 +22,10 @@ def price_slots(price_state, now, hours=48):
         for row in price_state.attributes.get(field, []) or []:
             if not isinstance(row, dict):
                 continue
-            timestamp = dt_util.parse_datetime(str(row.get("hour", "")))
+            try:
+                timestamp = dt_util.parse_datetime(str(row.get("hour", "")))
+            except (TypeError, ValueError):
+                continue
             cost = as_float(row.get("price"))
             if timestamp is None or cost is None or cost < 0:
                 continue
@@ -36,7 +39,10 @@ def weather_slots(hourly, now):
     for item in hourly or []:
         if not isinstance(item, dict):
             continue
-        moment = dt_util.parse_datetime(str(item.get("datetime", "")))
+        try:
+            moment = dt_util.parse_datetime(str(item.get("datetime", "")))
+        except (TypeError, ValueError):
+            continue
         temperature = as_float(item.get("temperature"))
         wind = as_float(item.get("wind_speed"))
         if moment is None or temperature is None:
