@@ -53,3 +53,9 @@ Klik på statusfelterne, energiflowets enheder eller de større kort for at åbn
 - Elpriser, vejr og AI-beslutningslog
 
 Når **Simulér drift** er valgt, er oversigten simuleret, men detaljevinduets sensordata er stadig de rigtige Home Assistant-data. Der sendes ingen styringskommandoer fra klikfunktionerne.
+
+
+## Version 1.5.0 – indbyggede Nordic Night-grafer
+Knappen **Vis graf og data** viser nu historik i en modal, der bruger det samme Nordic Night-design som dashboardet. Vælg 6 timer, 24 timer eller 7 dage. Grafer indlæses via Home Assistants Recorder API, og sensorattributter vises nedenunder. Sensorsignaler som ikke er numeriske vises som en tidslinje af tilstande.
+
+Recorder skal være aktiveret, og den valgte sensor skal have gemt historik. Ingen styringskommandoer udføres. Hvis du anvender Simulér drift, er selve detaljegrafen baseret på reelle HA-sensordata, ikke de simulerede demo-tal.
