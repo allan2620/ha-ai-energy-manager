@@ -5,7 +5,7 @@ from .const import DOMAIN, DEFAULTS
 
 ENTITY_KEYS = {
     "grid", "pv", "hp_power", "room", "outdoor", "water", "price",
-    "weather", "weather_entity", "hp", "dhw", "nilan",
+    "weather", "weather_entity", "pv_forecast_entry", "hp", "dhw", "nilan",
 }
 
 def schema(values):
