@@ -8,6 +8,11 @@ class AIEnergyPanel extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this.demo = false;
     this.selectedDetail = null;
+    this.graphEntity = null;
+    this.graphHours = 24;
+    this.graphHistory = [];
+    this.graphLoading = false;
+    this.graphError = "";
     this._hass = null;
     this._renderQueued = false;
   }
@@ -197,11 +202,76 @@ class AIEnergyPanel extends HTMLElement {
     return '<div class="modal-backdrop" id="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-label="'+this.esc(group.title)+'">'+
       '<div class="modal-header"><h2>'+this.esc(group.title)+'</h2><button id="modal-close" aria-label="Luk">✕</button></div>'+
       (this.demo?'<p class="modal-note">Simulationen er kun en illustration. Disse detaljer viser rigtige Home Assistant-sensorer.</p>':'<p class="modal-note">Vælg Vis graf og data for Home Assistants historie, attributter og flere oplysninger.</p>')+
-      '<div>'+rows+diagnostic+'</div></div></div>';
+      (this.graphEntity ? this.graphHtml() : '<div>'+rows+diagnostic+'</div>')+'</div></div>';
   }
-  showMoreInfo(entityId) {
-    if(!this.st(entityId)) return;
-    this.dispatchEvent(new CustomEvent("hass-more-info",{bubbles:true,composed:true,detail:{entityId}}));
+  async showMoreInfo(entityId, hours=24) {
+    if(!this.st(entityId))return;
+    this.graphEntity=entityId;
+    this.graphHours=hours;
+    this.graphLoading=true;
+    this.graphError="";
+    this.graphHistory=[];
+    this.render();
+    try {
+      const end=new Date();
+      const start=new Date(end.getTime()-hours*3600000);
+      const path="history/period/"+encodeURIComponent(start.toISOString())+
+        "?filter_entity_id="+encodeURIComponent(entityId)+
+        "&end_time="+encodeURIComponent(end.toISOString())+"&minimal_response&no_attributes";
+      const result=await this._hass.callApi("GET",path);
+      if(this.graphEntity!==entityId||this.graphHours!==hours)return;
+      this.graphHistory=(Array.isArray(result)&&Array.isArray(result[0])?result[0]:[])
+        .map(p=>({time:Date.parse(p.last_changed||p.last_updated||""),value:String(p.state??"")}))
+        .filter(p=>Number.isFinite(p.time));
+    }catch(e){
+      if(this.graphEntity!==entityId||this.graphHours!==hours)return;
+      this.graphError="Kunne ikke hente historik: "+String(e?.message||e);
+    }
+    this.graphLoading=false;
+    this.render();
+  }
+  graphHtml(){
+    const id=this.graphEntity;
+    const st=this.st(id);
+    if(!id||!st)return "";
+    const data=this.graphHistory;
+    const numeric=data.filter(p=>p.value.trim()!==""&&Number.isFinite(Number(p.value)));
+    const isNumeric=data.length&&numeric.length>=data.length*.85;
+    let graph="";
+    if(this.graphLoading)graph='<div class="graph-message">Indlæser historik…</div>';
+    else if(this.graphError)graph='<div class="graph-message">'+this.esc(this.graphError)+'</div>';
+    else if(!data.length)graph='<div class="graph-message">Ingen registreret historik. Kontrollér Recorder.</div>';
+    else if(isNumeric){
+      const values=numeric.map(p=>Number(p.value));
+      const lo=Math.min(...values),hi=Math.max(...values),margin=Math.max(.1,(hi-lo)*.1);
+      const min=lo-margin,max=hi+margin;
+      const t0=numeric[0].time,t1=numeric[numeric.length-1].time;
+      const x=t=>55+(t-t0)/Math.max(1,t1-t0)*570;
+      const y=v=>15+(max-v)/Math.max(.01,max-min)*185;
+      const points=numeric.map(p=>x(p.time).toFixed(1)+","+y(Number(p.value)).toFixed(1)).join(" ");
+      const grid=[0,1,2,3,4].map(i=>{
+        const yy=15+185*i/4;
+        return '<line x1="55" y1="'+yy+'" x2="625" y2="'+yy+'" stroke="#35536b"/>'+
+        '<text x="4" y="'+(yy+4)+'" fill="#afc7db" font-size="12">'+this.esc(this.fmt(max-(max-min)*i/4,1))+'</text>';
+      }).join("");
+      const leftTime=new Date(t0).toLocaleTimeString("da-DK",{hour:"2-digit",minute:"2-digit"});
+      const rightTime=new Date(t1).toLocaleTimeString("da-DK",{hour:"2-digit",minute:"2-digit"});
+      graph='<svg class="nordic-chart" viewBox="0 0 640 232" role="img" aria-label="Historikgraf">'+grid+
+        '<polyline points="'+points+'" fill="none" stroke="#92e0bc" stroke-width="3" stroke-linejoin="round"/>'+
+        '<text x="55" y="223" fill="#afc7db" font-size="12">'+leftTime+'</text>'+
+        '<text x="625" text-anchor="end" y="223" fill="#afc7db" font-size="12">'+rightTime+'</text></svg>'+
+        '<div class="graph-sub">'+numeric.length+' målinger · '+this.esc(st.attributes?.unit_of_measurement||"")+'</div>';
+    }else{
+      graph='<div class="graph-events">'+data.slice(-25).reverse().map(p=>
+        '<div class="detail-line"><span>'+this.esc(new Date(p.time).toLocaleString("da-DK"))+'</span><strong>'+this.esc(p.value)+'</strong></div>').join("")+'</div>';
+    }
+    const attrs=Object.entries(st.attributes||{}).map(([key,value])=>
+      '<div class="detail-line"><span>'+this.esc(key)+'</span><strong>'+this.esc(typeof value==="object"?JSON.stringify(value):value)+'</strong></div>').join("");
+    return '<div class="nordic-history"><button id="graph-back" class="graph-back">← Tilbage til detaljer</button>'+
+      '<h3>'+this.esc(st.attributes?.friendly_name||id)+'</h3><small>'+this.esc(id)+'</small>'+
+      '<div class="current-reading">'+this.esc(st.state)+' '+this.esc(st.attributes?.unit_of_measurement||"")+'</div>'+
+      '<div class="graph-ranges">'+[6,24,168].map(h=>'<button data-graph-hours="'+h+'" class="'+(this.graphHours===h?'chosen':'')+'">'+(h===168?'7 dage':h+' timer')+'</button>').join("")+'</div>'+
+      graph+'<h3>Sensorattributter</h3><div class="history-attrs">'+attrs+'</div></div>';
   }
 
   render() {
@@ -357,6 +427,16 @@ class AIEnergyPanel extends HTMLElement {
         .detail-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:end}
         .diag{color:#ffcca6}
         @media(max-width:550px){.detail-line{align-items:flex-start;flex-direction:column}.detail-actions{justify-content:start}}
+        .nordic-history h3{font-size:18px;margin:14px 0 5px}
+        .nordic-history small,.graph-sub{color:#a9c1d4;font-size:12px;overflow-wrap:anywhere}
+        .current-reading{font-size:30px;color:#a3be8c;font-weight:700;margin:13px 0}
+        .graph-ranges{display:flex;gap:9px;margin:12px 0 18px;flex-wrap:wrap}
+        .graph-ranges button,.graph-back{background:#213c54;border:1px solid #4e7691;border-radius:9px;color:#e6f3fc;padding:8px 13px;cursor:pointer}
+        .graph-ranges .chosen{background:#35614e;border-color:#99c5a0}
+        .nordic-chart{width:100%;height:auto;display:block;background:#0b1a29;border:1px solid #39566c;border-radius:12px}
+        .graph-message{padding:24px;background:#102438;border:1px solid #3c5974;border-radius:12px;color:#c3d8eb}
+        .graph-events,.history-attrs{max-height:280px;overflow:auto}
+        .history-attrs .detail-line strong{max-width:65%;overflow-wrap:anywhere;text-align:right;font-size:12px}
         .mobile-head{display:none}
         @media (max-width: 1550px){.topbar{grid-template-columns:repeat(3,1fr)}.bottom{grid-template-columns:1fr 1fr}.price-area{grid-template-columns:1fr}.flow-layout{grid-template-columns:230px 1fr 260px}.title-block h1{font-size:42px}.title-block p{font-size:18px}}
         @media (max-width: 1080px){.app{grid-template-columns:1fr}.side{display:none}.mobile-head{display:inline-flex}.flow-layout,.mid,.bottom,.panel-grid,.nilan-side{grid-template-columns:1fr}.topbar{grid-template-columns:repeat(2,1fr)}.content{padding:14px}.title-block h1{font-size:34px}.title-block p{font-size:16px}.header-icon{width:54px;height:54px}}
@@ -501,6 +581,8 @@ class AIEnergyPanel extends HTMLElement {
     this.shadowRoot.querySelector("#modal-close")?.addEventListener("click",()=>{this.selectedDetail=null;this.render();});
     this.shadowRoot.querySelector("#modal-backdrop")?.addEventListener("click",e=>{if(e.target.id==="modal-backdrop"){this.selectedDetail=null;this.render();}});
     this.shadowRoot.querySelectorAll("[data-moreinfo]").forEach(btn=>btn.addEventListener("click",()=>this.showMoreInfo(btn.dataset.moreinfo)));
+    this.shadowRoot.querySelector("#graph-back")?.addEventListener("click",()=>{this.graphEntity=null;this.graphHistory=[];this.render();});
+    this.shadowRoot.querySelectorAll("[data-graph-hours]").forEach(btn=>btn.addEventListener("click",()=>this.showMoreInfo(this.graphEntity,Number(btn.dataset.graphHours))));
 
     this.shadowRoot.getElementById("simulate-btn")?.addEventListener("click", () => {
       this.demo = !this.demo;
