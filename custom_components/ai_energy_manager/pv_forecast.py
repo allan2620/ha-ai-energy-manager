@@ -49,8 +49,15 @@ def pv_summary(hour_map, now, timezone):
     local_now = now.astimezone(timezone)
     today = local_now.date()
     tomorrow = today + timedelta(days=1)
-    today_energy = [x["pv_energy_kwh"] for when, x in hour_map.items()
-                    if when.astimezone(timezone).date() == today and x.get("pv_energy_kwh") is not None]
+    # The current hour is only partly in the future. Do not count its
+    # full predicted production as "remaining today".
+    current_hour = now.astimezone(dt_util.UTC).replace(minute=0, second=0, microsecond=0)
+    remainder = max(0, min(1, (3600 - (now - current_hour).total_seconds()) / 3600))
+    today_energy = [
+        x["pv_energy_kwh"] * (remainder if when == current_hour else 1)
+        for when, x in hour_map.items()
+        if when.astimezone(timezone).date() == today and x.get("pv_energy_kwh") is not None
+    ]
     tomorrow_energy = [x["pv_energy_kwh"] for when, x in hour_map.items()
                        if when.astimezone(timezone).date() == tomorrow and x.get("pv_energy_kwh") is not None]
     return {
