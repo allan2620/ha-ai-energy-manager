@@ -1,5 +1,7 @@
 """AI Energy Manager – automatic sidebar panel."""
 from pathlib import Path
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
+from homeassistant.core import CoreState, callback
 from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from .const import DOMAIN
@@ -32,6 +34,15 @@ async def async_setup_entry(hass, entry):
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = engine
     await engine.async_config_entry_first_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
+    # The first refresh may run before P1, Husdata, Nilan and price entities
+    # have published their initial states. Re-evaluate after HA is fully started.
+    if hass.state != CoreState.running:
+        @callback
+        def _after_start(_event):
+            hass.async_create_task(engine.async_request_refresh())
+        entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _after_start))
+    else:
+        await engine.async_request_refresh()
     await _setup_panel(hass)
     entry.async_on_unload(entry.add_update_listener(reload_entry))
     return True
