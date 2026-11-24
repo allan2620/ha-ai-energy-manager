@@ -116,6 +116,8 @@ class Engine(DataUpdateCoordinator):
             and 15 <= cfg.get("min_boost_minutes", 30) <= 240
             and 30 <= cfg.get("max_boost_minutes", 120) <= 360
             and 0.1 <= cfg.get("future_price_jump", 0.8) <= 5
+            and 3000 <= cfg.get("high_import_w", 9500.0) <= 30000
+            and 500 <= cfg.get("solar_notify_w", 3000.0) <= 30000
         )
         if not limits_ok:
             faults.append("Ugyldige sikkerhedsgrænser i indstillinger")
@@ -389,6 +391,33 @@ class Engine(DataUpdateCoordinator):
             except Exception as exc:
                 _LOGGER.debug("Sensor fault notification failed: %s", exc)
         memory["fault_signature"] = list(fault_signature)
+        if cfg.get("notify_energy", True):
+            import_power = (grid if not cfg["export_positive"] else -grid) if grid is not None else None
+            alert_conditions = [
+                ("high_import", import_power is not None and import_power >= cfg["high_import_w"],
+                 600, "Højt elforbrug", "Husets nettoimport har været høj i mindst 10 minutter."),
+                ("solar_surplus", export is not None and export >= cfg["solar_notify_w"],
+                 900, "Soloverskud til rådighed", "Stabil eksport kan eventuelt bruges til fleksibelt forbrug."),
+            ]
+            for key, condition, hold, title, message in alert_conditions:
+                since_key = key + "_since"
+                last_key = key + "_last_alert"
+                if condition and safe:
+                    memory.setdefault(since_key, timestamp)
+                    if timestamp - memory[since_key] >= hold and timestamp - memory.get(last_key, 0) >= 21600:
+                        try:
+                            await self.hass.services.async_call(
+                                "persistent_notification", "create",
+                                {"title": "AI Energy: " + title,
+                                 "message": message,
+                                 "notification_id": "ai_energy_" + key},
+                                blocking=True,
+                            )
+                            memory[last_key] = timestamp
+                        except Exception as exc:
+                            _LOGGER.debug("Energy notification failed: %s", exc)
+                else:
+                    memory.pop(since_key, None)
         if reason != memory.get("reason"):
             logs.append(dt_util.now().strftime("%d/%m %H:%M") + " " + reason)
         memory["reason"] = reason
