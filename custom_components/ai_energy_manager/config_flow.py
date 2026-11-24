@@ -68,10 +68,19 @@ class Flow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class Options(config_entries.OptionsFlow):
     def _save(self, user_input):
-        """Ensure cleared optional selectors override old entry.data values."""
+        """Persist choices, clearing old overrides and failing closed on rebinding."""
         values = dict(user_input)
         for key in OPTIONAL_KEYS:
             values.setdefault(key, "")
+        previous = self._values()
+        safety_critical = ("room", "hp", "grid", "pv", "hp_power", "outdoor")
+        if any(values.get(key, previous.get(key)) != previous.get(key) for key in safety_critical):
+            # A newly selected room or grid sensor has not been verified.
+            # One later explicit settings save can re-enable hardware controls.
+            values["room_verified"] = False
+            values["write_heat"] = False
+            values["write_water"] = False
+            values["test_mode"] = True
         return self.async_create_entry(title="", data=values)
 
     def _values(self):
