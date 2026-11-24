@@ -7,6 +7,7 @@ class AIEnergyPanel extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this.demo = false;
+    this.selectedDetail = null;
     this._hass = null;
     this._renderQueued = false;
   }
@@ -162,6 +163,47 @@ class AIEnergyPanel extends HTMLElement {
     return items.map((x) => `<div class="log-row"><span class="dot"></span><span>${this.esc(x)}</span></div>`).join('');
   }
 
+
+  detailGroups() {
+    return {
+      solar:{title:"Solceller",ids:["sensor.danfoss_tlx_pro_241202n272_grid_power_total","sensor.danfoss_tlx_pro_241202n272_pv_power_string_1","sensor.danfoss_tlx_pro_241202n272_pv_power_string_2","sensor.danfoss_tlx_pro_241202n272_grid_energy_today_total"]},
+      grid:{title:"Elnet og forbrug",ids:["sensor.p1_meter_power","sensor.p1_meter_power_phase_1","sensor.p1_meter_power_phase_2","sensor.p1_meter_power_phase_3","sensor.p1_meter_energy_import","sensor.p1_meter_energy_export"]},
+      hp:{title:"IVT varmepumpe",ids:["binary_sensor.hp_compressor","sensor.hp_power_consumption","sensor.hp_heat_carrier_forwrd","sensor.hp_heat_carrier_return","climate.hp_room_temp_setpoint","climate.hp_heat_set_1_curvel","climate.hp_heat_set_3_parallel","binary_sensor.hp_alarm"]},
+      water:{title:"Varmtvand",ids:["sensor.hp_warm_water_1_top","sensor.hp_warm_water_setpoint","climate.hp_extra_warm_water","climate.hp_warm_water_stop_temp"]},
+      nilan:{title:"Nilan ventilation",ids:["climate.boiler_room_nilan_hvac","sensor.boiler_room_nilan_humidity","sensor.boiler_room_nilan_exchanger_efficiency","sensor.boiler_room_nilan_return_air_temperature_t3","sensor.boiler_room_nilan_user_panel_temperature_t15","sensor.boiler_room_nilan_supply_air_temperature_t7","sensor.boiler_room_nilan_supply_fan_speed","sensor.boiler_room_nilan_return_fan_speed"]},
+      price:{title:"Elpriser og CO₂",ids:["sensor.energi_data_service","sensor.energi_data_service_co2"]},
+      weather:{title:"Vejrudsigt",ids:["weather.forecast_hjem","sensor.custom_weather_forecast_daily","sensor.hp_outdoor"]},
+      room:{title:"Temperaturer",ids:["sensor.boiler_room_nilan_user_panel_temperature_t15","sensor.boiler_room_nilan_return_air_temperature_t3","climate.hp_room_temp_setpoint"]},
+      ai:{title:"AI beslutningslog",ids:[]}
+    };
+  }
+  detailsHtml() {
+    if(!this.selectedDetail) return "";
+    const group=this.detailGroups()[this.selectedDetail];
+    if(!group)return "";
+    const status=this.st(this.liveStatusSensor);
+    const faults=Array.isArray(status?.attributes?.fejl)?status.attributes.fejl:[];
+    const logs=Array.isArray(status?.attributes?.beslutninger)?status.attributes.beslutninger:[];
+    const rows=group.ids.map(id=>{
+      const st=this.st(id);
+      const label=st?.attributes?.friendly_name||id.split(".")[1].replaceAll("_"," ");
+      const val=st?st.state+" "+(st.attributes?.unit_of_measurement||""):"Sensor mangler";
+      return '<div class="detail-line"><div><b>'+this.esc(label)+'</b><small>'+this.esc(id)+'</small></div><div class="detail-actions"><strong>'+this.esc(val)+'</strong>'+(st?'<button data-moreinfo="'+this.esc(id)+'">Vis graf og data</button>':'')+'</div></div>';
+    }).join("");
+    const diagnostic=this.selectedDetail==="ai"?
+      '<div class="detail-line"><b>Status</b>'+this.esc(status?.state||"Afventer")+'</div>'+
+      (faults.length?faults.map(x=>'<p class="diag">'+this.esc(x)+'</p>').join(""):'<p>Ingen registrerede fejl.</p>')+
+      logs.slice(-20).reverse().map(x=>'<div class="detail-line">'+this.esc(x)+'</div>').join(""):"";
+    return '<div class="modal-backdrop" id="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-label="'+this.esc(group.title)+'">'+
+      '<div class="modal-header"><h2>'+this.esc(group.title)+'</h2><button id="modal-close" aria-label="Luk">✕</button></div>'+
+      (this.demo?'<p class="modal-note">Simulationen er kun en illustration. Disse detaljer viser rigtige Home Assistant-sensorer.</p>':'<p class="modal-note">Vælg Vis graf og data for Home Assistants historie, attributter og flere oplysninger.</p>')+
+      '<div>'+rows+diagnostic+'</div></div></div>';
+  }
+  showMoreInfo(entityId) {
+    if(!this.st(entityId)) return;
+    this.dispatchEvent(new CustomEvent("hass-more-info",{bubbles:true,composed:true,detail:{entityId}}));
+  }
+
   render() {
     if (!this._hass) return;
     const demo = this.demo;
@@ -301,6 +343,20 @@ class AIEnergyPanel extends HTMLElement {
         .price-area{display:grid;grid-template-columns:1fr 200px;gap:12px;align-items:start}.price-bars{height:126px;display:flex;align-items:end;gap:4px;border-bottom:1px solid #7e8ea0;padding:0 4px}.price-bar{flex:1;border-radius:4px 4px 0 0;background:#7ee3a2;min-height:4px}.price-bar.amber{background:#efbd59}.price-bar.red{background:#ee826e}.price-bar.now{outline:2px solid #eaf3ff}.price-axis{display:flex;justify-content:space-between;color:#bcc9d6;font-size:12px;padding-top:6px}.plan{padding-top:2px}.plan-title{display:flex;align-items:center;gap:8px;font-size:18px;margin-bottom:10px}.plan-row{display:flex;gap:9px;align-items:flex-start;margin:8px 0;font-size:15px}.check{color:#69f08e;font-weight:700}
         .log-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:16px}.dot{width:10px;height:10px;border-radius:50%;background:#63ef8c;margin-top:6px;box-shadow:0 0 10px rgba(99,239,140,.5)}
         .footer{display:flex;justify-content:flex-end;color:#dce6f3;font-style:italic;font-size:14px;margin-top:10px}.empty{color:#9fb1c3}
+.click-more{cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease}
+        .click-more:hover{border-color:#80bedb;box-shadow:0 0 18px rgba(101,184,229,.25)}
+        .click-more:focus-visible{outline:2px solid #a3be8c;outline-offset:2px}
+        .modal-backdrop{position:fixed;inset:0;background:rgba(0,8,18,.8);z-index:999;display:flex;align-items:center;justify-content:center;padding:15px}
+        .modal{background:#14283b;border:1px solid #5a7c98;border-radius:18px;box-shadow:0 12px 60px #000b;max-height:88vh;overflow:auto;width:min(740px,100%);padding:20px}
+        .modal-header{display:flex;justify-content:space-between;gap:12px;align-items:center}
+        .modal-header h2{font-size:22px;margin:0}
+        .modal-header button,.detail-actions button{border-radius:9px;border:1px solid #4c7895;background:#244158;color:#eef8ff;padding:8px 12px;cursor:pointer}
+        .modal-note{color:#b8cce0;font-size:13px}
+        .detail-line{display:flex;gap:15px;justify-content:space-between;align-items:center;border-top:1px solid #36536c;padding:12px 2px}
+        .detail-line small{display:block;color:#a1b5c9;font-size:11px;overflow-wrap:anywhere}
+        .detail-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:end}
+        .diag{color:#ffcca6}
+        @media(max-width:550px){.detail-line{align-items:flex-start;flex-direction:column}.detail-actions{justify-content:start}}
         .mobile-head{display:none}
         @media (max-width: 1550px){.topbar{grid-template-columns:repeat(3,1fr)}.bottom{grid-template-columns:1fr 1fr}.price-area{grid-template-columns:1fr}.flow-layout{grid-template-columns:230px 1fr 260px}.title-block h1{font-size:42px}.title-block p{font-size:18px}}
         @media (max-width: 1080px){.app{grid-template-columns:1fr}.side{display:none}.mobile-head{display:inline-flex}.flow-layout,.mid,.bottom,.panel-grid,.nilan-side{grid-template-columns:1fr}.topbar{grid-template-columns:repeat(2,1fr)}.content{padding:14px}.title-block h1{font-size:34px}.title-block p{font-size:16px}.header-icon{width:54px;height:54px}}
@@ -417,9 +473,34 @@ class AIEnergyPanel extends HTMLElement {
               ${this.logItems(logs)}
             </section>
           </div>
+          ${this.detailsHtml()}
           <div class="footer">${demo ? 'Simuleret dashboard – eksempeldata' : faults.length ? 'Live dashboard – nogle sensorer mangler' : 'Live dashboard – aktuelle data'}</div>
         </main>
       </div>`;
+
+
+    const selectors=[
+      [".topbar .stat",["solar","grid","hp","nilan","price","weather"]],
+      [".flow-col:first-child .flow-card",["solar","grid"]],
+      [".flow-col:last-child .flow-card",["hp","water","nilan"]],
+      [".mid .panel",["hp","nilan"]],
+      [".bottom .panel",["solar","weather","price","ai"]]
+    ];
+    for(const [selector,keys] of selectors){
+      this.shadowRoot.querySelectorAll(selector).forEach((el,i)=>{
+        el.dataset.detail=keys[i];el.classList.add("click-more");el.setAttribute("role","button");el.tabIndex=0;
+      });
+    }
+    const decision=this.shadowRoot.querySelector(".decision");
+    if(decision){decision.dataset.detail="ai";decision.classList.add("click-more");decision.tabIndex=0;decision.setAttribute("role","button");}
+    const detail=(key)=>{if(this.detailGroups()[key]){this.selectedDetail=key;this.render();}};
+    this.shadowRoot.querySelectorAll("[data-detail]").forEach(el=>{
+      el.addEventListener("click",()=>detail(el.dataset.detail));
+      el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();detail(el.dataset.detail);}});
+    });
+    this.shadowRoot.querySelector("#modal-close")?.addEventListener("click",()=>{this.selectedDetail=null;this.render();});
+    this.shadowRoot.querySelector("#modal-backdrop")?.addEventListener("click",e=>{if(e.target.id==="modal-backdrop"){this.selectedDetail=null;this.render();}});
+    this.shadowRoot.querySelectorAll("[data-moreinfo]").forEach(btn=>btn.addEventListener("click",()=>this.showMoreInfo(btn.dataset.moreinfo)));
 
     this.shadowRoot.getElementById("simulate-btn")?.addEventListener("click", () => {
       this.demo = !this.demo;
