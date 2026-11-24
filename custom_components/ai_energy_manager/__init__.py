@@ -26,7 +26,7 @@ async def _setup_panel(hass):
         hass, webcomponent_name="ai-energy-panel",
         frontend_url_path=PANEL_ROUTE,
         sidebar_title="AI Energy", sidebar_icon="mdi:brain",
-        module_url=f"{ASSET_URL}/ai-energy-panel.js?v=1.6.0",
+        module_url=f"{ASSET_URL}/ai-energy-panel.js?v=2.0.0",
         embed_iframe=False, require_admin=False,
     )
     hass.data[PANEL_KEY] = True
@@ -38,7 +38,7 @@ async def async_setup_entry(hass, entry):
     engine = Engine(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = engine
     await engine.async_config_entry_first_refresh()
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "select"])
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "select", "button"])
     # The first refresh may run before P1, Husdata, Nilan and price entities
     # have published their initial states. Re-evaluate after HA is fully started.
     if hass.state != CoreState.running:
