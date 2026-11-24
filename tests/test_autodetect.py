@@ -19,8 +19,14 @@ const=sys.modules[package.__name__+".const"]
 detect=sys.modules[package.__name__+".autodetect"]
 
 
-def state(entity_id, status="20", name=""):
-    return SimpleNamespace(entity_id=entity_id, state=status, attributes={"friendly_name": name})
+def state(entity_id, status="20", name="", unit=None):
+    if unit is None:
+        if entity_id.startswith("sensor."):
+            if "power" in entity_id or "consumption" in entity_id:
+                unit = "W"
+            elif "price" in entity_id:
+                unit = "DKK/kWh"
+    return SimpleNamespace(entity_id=entity_id, state=status, attributes={"friendly_name": name, "unit_of_measurement": unit})
 
 
 class AutoDetectTests(unittest.TestCase):
