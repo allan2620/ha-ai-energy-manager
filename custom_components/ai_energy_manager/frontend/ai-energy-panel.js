@@ -406,6 +406,52 @@ class AIEnergyPanel extends HTMLElement {
     this.shadowRoot.querySelector(".app")?.setAttribute("data-accent",layout.accent);
   }
 
+  planEntity() {
+    const states=Object.values(this._hass?.states||{});
+    return states.find(x=>x.entity_id?.startsWith("sensor.ai_energy_manager_")&&
+      x.attributes?.friendly_name==="AI Energy Manager Plan næste 48 timer")?.entity_id
+      || "sensor.ai_energy_manager_plan_naeste_48_timer";
+  }
+  planMarkup() {
+    const status=this.st(this.liveStatusSensor);
+    const entity=this.st(this.planEntity());
+    const plan=Array.isArray(entity?.attributes?.plan)?entity.attributes.plan:[];
+    const prices=plan.filter(x=>typeof x.price==="number").map(x=>x.price);
+    const minPrice=prices.length?Math.min(...prices):null;
+    const maxPrice=prices.length?Math.max(...prices):null;
+    const span=minPrice===null?"—":this.fmt(maxPrice-minPrice,2)+" kr/kWh";
+    const projected=(maxPrice===null||minPrice===null)?"—":this.fmt(Math.max(0,maxPrice-minPrice)*2.5,2)+" kr";
+    const mode=status?.attributes?.energiprofil||"normal";
+    const options=["normal","comfort","economy","holiday"];
+    const controls='<div class="plan-policy"><label>Energiprofil: <select id="energy-mode" aria-label="Vælg energiprofil">'+
+      options.map(x=>'<option value="'+x+'" '+(x===mode?'selected':'')+'>'+({
+        normal:"Normal",comfort:"Komfort",economy:"Økonomi",holiday:"Ferie"
+      }[x])+'</option>').join("")+'</select></label>'+
+      '<small>Energiprofil styrer kun tilvalg; testtilstand og sikkerhed kan ikke omgås.</small></div>';
+    const cards=plan.length?plan.map((hour,index)=>{
+      const price=typeof hour.price==="number"?this.fmt(hour.price,2):"—";
+      const out=typeof hour.outdoor==="number"?this.fmt(hour.outdoor,1)+" °C":"—";
+      const when=new Date(hour.time);
+      const title=when.toLocaleString("da-DK",{weekday:"short",hour:"2-digit",minute:"2-digit"});
+      const action=hour.action||"ukendt";
+      const cls=action==="billig forvarmning"?"plan-cheap":action==="undgå ekstra boost"?"plan-expensive":"";
+      return '<div class="plan-hour '+cls+'" title="'+this.esc(hour.note||"")+'"><b>'+this.esc(title)+'</b>'+
+        '<strong>'+this.esc(price)+'</strong><span>'+this.esc(out)+'</span>'+
+        '<small>'+this.esc(action)+'</small></div>';
+    }).join(""):'<div class="empty">Afventer timebaseret pris- og vejrplan.</div>';
+    const coverage=entity?.attributes||{};
+    return '<section class="panel plan-section">'+
+      '<h2><ha-icon icon="mdi:calendar-clock"></ha-icon>AI-plan – 48 timer</h2>'+
+      '<p class="plan-intro">Forslag ud fra DK1-elpriser og tilgængelige vejrdata. Ingen fremtidig solproduktion er beregnet.</p>'+
+      '<div class="plan-summary"><div><span>Prisdata</span><strong>'+this.esc(coverage.pristimer??0)+'/48 timer</strong></div>'+
+      '<div><span>Vejrdata</span><strong>'+this.esc(coverage.vejrtimer??0)+'/48 timer</strong></div>'+
+      '<div><span>Prisspænd</span><strong>'+span+'</strong></div>'+
+      '<div><span>Teoretisk prisforskel pr. flyttet time (2,5 kW)</span><strong>'+projected+'</strong></div></div>'+
+      controls+'<div class="plan-scroll"><div class="plan-hours">'+cards+'</div></div>'+
+      '<p class="plan-note">'+this.esc(coverage["bemærkning"]||"Planen er vejledende, og besparelser er ikke målt.")+'</p>'+
+      '</section>';
+  }
+
   render() {
     if (!this._hass) return;
     const demo = this.demo;
@@ -595,6 +641,25 @@ class AIEnergyPanel extends HTMLElement {
         .editor-footer span{flex:1}
         .editor-error{background:#5b3228;color:#ffddc3;padding:10px;border-radius:9px}
         @media(max-width:600px){.editor-fields,.editor-item{grid-template-columns:1fr}.editor-footer{flex-wrap:wrap}}
+        .plan-section{margin-top:14px}
+        .plan-intro,.plan-note{font-size:12px;color:#b1c9d9}
+        .plan-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+        .plan-summary>div{background:#162e40;border:1px solid #3a5974;border-radius:10px;padding:10px}
+        .plan-summary span{display:block;color:#acc4d5;font-size:12px}
+        .plan-summary strong{display:block;font-size:17px}
+        .plan-policy{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
+        .plan-policy select{background:#18334a;color:#e2f5ff;border:1px solid #476c84;border-radius:8px;padding:9px}
+        .plan-policy small{color:#99b9ce}
+        .plan-scroll{overflow-x:auto;padding-bottom:8px}
+        .plan-hours{display:flex;gap:6px;min-width:max-content}
+        .plan-hour{width:111px;min-height:112px;display:flex;flex-direction:column;gap:5px;padding:9px 8px;border:1px solid #3a5369;border-radius:11px;background:#142538}
+        .plan-hour strong{font-size:19px;color:#edf8ff}
+        .plan-hour b{font-size:12px}
+        .plan-hour span{font-size:12px;color:#b1c9d9}
+        .plan-hour small{font-size:10px;color:#a0b6c8}
+        .plan-cheap{border-color:#569c76;background:#183b31}
+        .plan-expensive{border-color:#a7745f;background:#392d29}
+        @media(max-width:850px){.plan-summary{grid-template-columns:repeat(2,1fr)}}
         .mobile-head{display:none}
         @media (max-width: 1550px){.topbar{grid-template-columns:repeat(3,1fr)}.bottom{grid-template-columns:1fr 1fr}.price-area{grid-template-columns:1fr}.flow-layout{grid-template-columns:230px 1fr 260px}.title-block h1{font-size:42px}.title-block p{font-size:18px}}
         @media (max-width: 1080px){.app{grid-template-columns:1fr}.side{display:none}.mobile-head{display:inline-flex}.flow-layout,.mid,.bottom,.panel-grid,.nilan-side{grid-template-columns:1fr}.topbar{grid-template-columns:repeat(2,1fr)}.content{padding:14px}.title-block h1{font-size:34px}.title-block p{font-size:16px}.header-icon{width:54px;height:54px}}
@@ -712,6 +777,7 @@ class AIEnergyPanel extends HTMLElement {
               ${this.logItems(logs)}
             </section>
           </div>
+          ${this.planMarkup()}
           ${this.detailsHtml()}
           ${this.editorHtml()}
           <div class="footer">${demo ? 'Simuleret dashboard – eksempeldata' : faults.length ? 'Live dashboard – nogle sensorer mangler' : 'Live dashboard – aktuelle data'}</div>
@@ -751,6 +817,14 @@ class AIEnergyPanel extends HTMLElement {
       this.layout=JSON.parse(JSON.stringify(this.getLayout()));
       this.editorError="";
       this.render();
+    });
+    this.shadowRoot.querySelector("#energy-mode")?.addEventListener("change",async(e)=>{
+      const value=e.target.value;
+      const entity=Object.values(this._hass.states||{}).find(x=>x.entity_id.startsWith("select.ai_energy_manager_")&&x.attributes?.friendly_name==="AI Energy Manager Energiprofil");
+      if(!entity){this.editorError="Energiprofil-entity findes endnu ikke";return;}
+      try{
+        await this._hass.callService("select","select_option",{entity_id:entity.entity_id,option:value});
+      }catch(err){this.editorError=String(err?.message||err);}
     });
     this.shadowRoot.getElementById("simulate-btn")?.addEventListener("click", () => {
       this.demo = !this.demo;
