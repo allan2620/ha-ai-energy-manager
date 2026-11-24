@@ -486,8 +486,23 @@ class AIEnergyPanel extends HTMLElement {
       const cls=action==="billig forvarmning"?"plan-cheap":action==="undgå ekstra boost"?"plan-expensive":"";
       return '<div class="plan-hour '+cls+'" title="'+this.esc(hour.note||"")+'"><b>'+this.esc(title)+'</b>'+
         '<strong>'+this.esc(price)+'</strong><span>'+this.esc(out)+'</span>'+ '<span class="plan-pv">☀ '+this.esc(solar)+'</span>' +
-        '<small>'+this.esc(action)+'</small></div>';
+        '<small>'+this.esc(hour.heat_advice||action)+'</small>'+
+        '<span class="plan-guidance" title="'+this.esc(hour.water_advice||"")+'">'+this.esc(hour.water_advice||"")+'</span>'+
+        (hour.overheating_risk?'<small class="plan-warning">Undgå ekstra varme</small>':'')+'</div>';
     }).join(""):'<div class="empty">Afventer timebaseret pris- og vejrplan.</div>';
+    const overview=this.st(this.liveStatusSensor)?.attributes||{};
+    const coordinator=(name)=>Object.values(this._hass?.states||{}).find(x=>
+      x.entity_id?.startsWith("sensor.ai_energy_manager_") &&
+      x.attributes?.friendly_name==="AI Energy Manager "+name)?.state;
+    const presence=coordinator("Tilstedeværelse")||overview["tilstedeværelse"]||"unknown";
+    const batt=coordinator("Batteristand");
+    const house=coordinator("Målt husforbrug");
+    const hotwaterReason=coordinator("Begrundelse for varmtvandsplan")||"Afventer data";
+    const coordinated='<div class="plan-summary">'+
+      '<div><span>Tilstedeværelse nu</span><strong>'+this.esc(presence==="home"?"Hjemme":presence==="away"?"Ude":"Ukendt")+'</strong></div>'+
+      '<div><span>Batteristand</span><strong>'+this.esc(batt&&!["unknown","unavailable"].includes(batt)?batt+" %":"Ikke tilsluttet")+'</strong></div>'+
+      '<div><span>Målt husforbrug</span><strong>'+this.esc(house&&!["unknown","unavailable"].includes(house)?house+" W":"Ukendt")+'</strong></div>'+
+      '<div><span>Varmtvandsplan</span><strong class="plan-small">'+this.esc(hotwaterReason)+'</strong></div></div>';
     const coverage=entity?.attributes||{};
     return '<section class="panel plan-section">'+
       '<h2><ha-icon icon="mdi:calendar-clock"></ha-icon>AI-plan – 48 timer</h2>'+
@@ -502,7 +517,7 @@ class AIEnergyPanel extends HTMLElement {
       '<div><span>Prisbudget 24 timer ved uændret nettoimport</span><strong>'+this.esc(budget&&!["unknown","unavailable"].includes(budget)?budget+" kr":"—")+'</strong></div>'+
       '<div><span>Målt COP (kræver varmemåler)</span><strong>'+this.esc(cop&&!["unknown","unavailable"].includes(cop)?cop:"—")+'</strong></div>'+
       '<div><span>Forslag til varmtvandsopvarmning</span><strong>'+this.esc(slotText)+'</strong></div></div>'+
-      controls+'<div class="plan-scroll"><div class="plan-hours">'+cards+'</div></div>'+
+      controls+coordinated+'<div class="plan-scroll"><div class="plan-hours">'+cards+'</div></div>'+
       '<p class="plan-note">'+this.esc(pvStatus)+' · '+this.esc(coverage["bemærkning"]||"Planen er vejledende, og besparelser er ikke målt.")+'</p>'+
       '</section>';
   }
@@ -726,11 +741,14 @@ class AIEnergyPanel extends HTMLElement {
         .plan-policy small{color:#99b9ce}
         .plan-scroll{overflow-x:auto;padding-bottom:8px}
         .plan-hours{display:flex;gap:6px;min-width:max-content}
-        .plan-hour{width:111px;min-height:112px;display:flex;flex-direction:column;gap:5px;padding:9px 8px;border:1px solid #3a5369;border-radius:11px;background:#142538}
+        .plan-hour{width:160px;min-height:130px;display:flex;flex-direction:column;gap:5px;padding:9px 8px;border:1px solid #3a5369;border-radius:11px;background:#142538}
         .plan-hour strong{font-size:19px;color:#edf8ff}
         .plan-hour b{font-size:12px}
         .plan-hour span{font-size:12px;color:#b1c9d9}
         .plan-hour small{font-size:10px;color:#a0b6c8}
+        .plan-guidance{font-size:10px;color:#c9d6e2}
+        .plan-warning{color:#ffb28a!important}
+        .plan-small{font-size:12px!important}
         .plan-hour .plan-pv{color:#f5d56d;font-size:11px}
         .plan-cheap{border-color:#569c76;background:#183b31}
         .plan-expensive{border-color:#a7745f;background:#392d29}
