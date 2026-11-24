@@ -1,7 +1,7 @@
 {
   "domain": "ai_energy_manager",
   "name": "AI Energy Manager",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "config_flow": true,
   "documentation": "https://github.com/allan2620/ha-ai-energy-manager",
   "iot_class": "local_polling",
