@@ -38,7 +38,13 @@
           "heat_output": "Målt varmeeffekt til COP (valgfrit)",
           "notify_energy": "Energimeddelelser",
           "high_import_w": "Grænse for høj netimport (W)",
-          "solar_notify_w": "Grænse for soloverskud (W)"
+          "solar_notify_w": "Grænse for soloverskud (W)",
+          "presence_entity": "Tilstedeværelse (valgfrit)",
+          "battery_soc_entity": "Batteristand (valgfrit)",
+          "battery_power_entity": "Batterieffekt (valgfrit)",
+          "house_load_entity": "Husets liveforbrug (valgfrit)",
+          "assumed_base_load_w": "Antaget grundlast (W), kun til planlægningsforslag",
+          "solar_overheat_margin": "Sikkerhedsmargin mod overophedning (°C)"
         }
       }
     }
@@ -88,7 +94,13 @@
           "heat_output": "Målt varmeeffekt til COP (valgfrit)",
           "notify_energy": "Energimeddelelser",
           "high_import_w": "Grænse for høj netimport (W)",
-          "solar_notify_w": "Grænse for soloverskud (W)"
+          "solar_notify_w": "Grænse for soloverskud (W)",
+          "presence_entity": "Tilstedeværelse (valgfrit)",
+          "battery_soc_entity": "Batteristand (valgfrit)",
+          "battery_power_entity": "Batterieffekt (valgfrit)",
+          "house_load_entity": "Husets liveforbrug (valgfrit)",
+          "assumed_base_load_w": "Antaget grundlast (W), kun til planlægningsforslag",
+          "solar_overheat_margin": "Sikkerhedsmargin mod overophedning (°C)"
         }
       },
       "autodetect": {
@@ -128,7 +140,13 @@
           "heat_output": "Målt varmeeffekt til COP (valgfrit)",
           "notify_energy": "Energimeddelelser",
           "high_import_w": "Grænse for høj netimport (W)",
-          "solar_notify_w": "Grænse for soloverskud (W)"
+          "solar_notify_w": "Grænse for soloverskud (W)",
+          "presence_entity": "Tilstedeværelse (valgfrit)",
+          "battery_soc_entity": "Batteristand (valgfrit)",
+          "battery_power_entity": "Batterieffekt (valgfrit)",
+          "house_load_entity": "Husets liveforbrug (valgfrit)",
+          "assumed_base_load_w": "Antaget grundlast (W), kun til planlægningsforslag",
+          "solar_overheat_margin": "Sikkerhedsmargin mod overophedning (°C)"
         }
       }
     }
