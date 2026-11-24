@@ -26,6 +26,8 @@ class Engine(DataUpdateCoordinator):
         self.c = {**DEFAULTS, **entry.data, **entry.options}
         self.store = Store(hass, 1, "ai_energy_manager_" + entry.entry_id)
         self.saved = None
+        self._hourly_cache = []
+        self._hourly_cache_until = 0
 
     def state(self, key):
         return self.hass.states.get(self.c[key])
@@ -123,17 +125,22 @@ class Engine(DataUpdateCoordinator):
         weather_state = self.state("weather")
         hourly = weather_state.attributes.get("forecast", []) if weather_state else []
         # The official weather entity can provide hourly forecasts through its service.
-        try:
-            response = await self.hass.services.async_call(
-                "weather", "get_forecasts",
-                {"entity_id": cfg["weather_entity"], "type": "hourly"},
-                blocking=True, return_response=True,
-            )
-            service_forecast = (response or {}).get(cfg["weather_entity"], {}).get("forecast", [])
-            if service_forecast:
-                hourly = service_forecast
-        except Exception as exc:
-            _LOGGER.debug("Hourly weather forecast unavailable: %s", exc)
+        if timestamp < self._hourly_cache_until and self._hourly_cache:
+            hourly = self._hourly_cache
+        else:
+            try:
+                response = await self.hass.services.async_call(
+                    "weather", "get_forecasts",
+                    {"entity_id": cfg["weather_entity"], "type": "hourly"},
+                    blocking=True, return_response=True,
+                )
+                service_forecast = (response or {}).get(cfg["weather_entity"], {}).get("forecast", [])
+                if service_forecast:
+                    hourly = service_forecast
+                    self._hourly_cache = service_forecast
+                    self._hourly_cache_until = timestamp + 1800
+            except Exception as exc:
+                _LOGGER.debug("Hourly weather forecast unavailable: %s", exc)
         if not isinstance(hourly, list):
             hourly = []
         hourly = [
@@ -220,6 +227,9 @@ class Engine(DataUpdateCoordinator):
             memory["boost_blocked_until"] = timestamp + 3600
             logs.append("Maksimal varighed for IVT boost nået; en times pause")
             memory.pop("owned_since", None)
+            memory["must_restore"] = True
+        if memory.get("must_restore"):
+            boost = False
         target = round(
             min(cfg["maximum"], cfg["normal"] + cfg["boost"]) if boost
             else cfg["normal"], 1
@@ -272,6 +282,7 @@ class Engine(DataUpdateCoordinator):
             if abs(current_setpoint - owned) > .15:
                 memory.pop("owned", None)
                 memory.pop("owned_since", None)
+                memory.pop("must_restore", None)
                 memory["manual_hold"] = True
                 logs.append("Manuel ændring registreret; automatisk rumboost sat på pause")
                 owned = None
@@ -289,6 +300,7 @@ class Engine(DataUpdateCoordinator):
                     await self.command("hp", baseline)
                     memory.pop("owned", None)
                     memory.pop("owned_since", None)
+                    memory.pop("must_restore", None)
                     logs.append("Tidligere IVT-solboost gendannet til normal setpunkt")
                 except Exception as exc:
                     logs.append("Kunne ikke gendanne IVT rumsetpunkt: " + str(exc)[:100])
@@ -315,7 +327,8 @@ class Engine(DataUpdateCoordinator):
                 unit = heat_sensor.attributes.get("unit_of_measurement")
                 if value is not None and unit in ("W", "kW"):
                     heat_output = value * (1000 if unit == "kW" else 1)
-        cop = round(heat_output / hp, 2) if heat_output is not None and hp and hp > 100 else None
+        cop = (round(heat_output / hp, 2) if heat_output is not None and hp is not None and hp > 500
+               and compressor is not None and compressor.state == "on" else None)
 
         # Cost budget assumes the *current* grid import remains unchanged for
         # 24 hours. This is not a forecast of future household consumption.
