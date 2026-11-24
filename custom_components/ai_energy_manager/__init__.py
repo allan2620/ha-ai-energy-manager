@@ -12,6 +12,7 @@ PANEL_ROUTE = "ai-energy"
 ASSET_URL = "/ai_energy_manager_static"
 PANEL_KEY = "_ai_energy_panel_registered"
 API_KEY = "_ai_energy_dashboard_api_registered"
+STATIC_KEY = "_ai_energy_static_registered"
 
 async def _setup_panel(hass):
     if hass.data.get(PANEL_KEY):
@@ -19,9 +20,13 @@ async def _setup_panel(hass):
     if PANEL_ROUTE in hass.data.get("frontend_panels", {}):
         hass.data[PANEL_KEY] = True
         return
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(ASSET_URL, str(Path(__file__).parent / "frontend"), cache_headers=False)
-    ])
+    # Static HTTP routes live for the HA process lifetime. Register once,
+    # even when an options change unloads and recreates the sidebar panel.
+    if not hass.data.get(STATIC_KEY):
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(ASSET_URL, str(Path(__file__).parent / "frontend"), cache_headers=False)
+        ])
+        hass.data[STATIC_KEY] = True
     await panel_custom.async_register_panel(
         hass, webcomponent_name="ai-energy-panel",
         frontend_url_path=PANEL_ROUTE,
