@@ -59,3 +59,22 @@ Når **Simulér drift** er valgt, er oversigten simuleret, men detaljevinduets s
 Knappen **Vis graf og data** viser nu historik i en modal, der bruger det samme Nordic Night-design som dashboardet. Vælg 6 timer, 24 timer eller 7 dage. Grafer indlæses via Home Assistants Recorder API, og sensorattributter vises nedenunder. Sensorsignaler som ikke er numeriske vises som en tidslinje af tilstande.
 
 Recorder skal være aktiveret, og den valgte sensor skal have gemt historik. Ingen styringskommandoer udføres. Hvis du anvender Simulér drift, er selve detaljegrafen baseret på reelle HA-sensordata, ikke de simulerede demo-tal.
+
+
+## Version 1.6.0 – grafisk dashboardeditor
+Dashboardet indeholder nu knappen **Rediger dashboard**.
+
+Du kan:
+- Ændre dashboardets titel.
+- Skjule eller vise felter.
+- Flytte felterne op eller ned i hver af de tre grupper: øverste KPI-kort, midterkort og nederste kort.
+- Ændre felternes viste navne.
+- Vælge Home Assistant-entity-ID til de seks øverste målefelter.
+- Vælge farvetema: Nordic Night, Nordic Green, Arctic Blue eller Nordic Violet.
+- Gemme indstillingerne i Home Assistant, så de bruges på tværs af enheder og efter genstart.
+- Nulstille layoutet til standardopsætningen.
+
+**Vigtigt:** Dashboardeditoren ændrer kun visning og hvilke sensorer der bruges i øverste række; den ændrer **ikke** styringsmotorens sensorer, IVT-setpunkter, Nilan eller varmtvandsindstillinger. Disse indstilles separat i integrationens konfiguration. Kun Home Assistant-administratorer kan gemme dashboardlayoutet. Andre brugere kan se layoutet.
+
+Data gemmes i Home Assistants lokale `.storage/ai_energy_manager_dashboard` via API'et `/api/ai_energy_manager/dashboard`. Rediger ikke filen direkte.
+Efter en opdatering til version 1.6.0, genstart Home Assistant og genindlæs browseren. En historikvisning i Nordic Night findes fortsat.
