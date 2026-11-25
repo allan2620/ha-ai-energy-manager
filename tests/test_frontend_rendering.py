@@ -24,6 +24,18 @@ class SmoothDashboardContracts(unittest.TestCase):
         self.assertIn('rail.scrollLeft=previous.planX',self.code)
         self.assertIn('contentEl.scrollTop=previous.contentY',self.code)
 
+    def test_energy_flow_is_inside_existing_hero(self):
+        self.assertIn("${this.heroFlowHtml(flowValues)}",self.code)
+        self.assertIn("${this.heroFlowSummaryHtml(flowValues)}",self.code)
+        self.assertNotIn("${this.flowDiagramHtml(flowValues)}",self.code)
+        self.assertIn('class="hero-flow-overlay"',self.code)
+
+    def test_professional_house_with_solar_and_garage(self):
+        self.assertIn('aem23Panels',self.code)
+        self.assertIn('role="img" aria-label="Moderne hus',self.code)
+        self.assertIn('HUS · LIVE',self.code)
+        self.assertIn('aem23Front',self.code)
+
     def test_live_render_is_throttled(self):
         self.assertIn('750-(Date.now()-this._lastLiveRenderAt)',self.code)
 
