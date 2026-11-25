@@ -688,10 +688,10 @@ class AIEnergyPanel extends HTMLElement {
       node(70,218,170,"⚡","Elnet",flow.valid?value(flow.importW||flow.exportW):"—",network,flow.valid?(flow.exportW>=50?"EKSPORT":flow.importW>=50?"IMPORT":"BALANCE"):"Ukendt")+
       node(390,247,170,"⌂","Hus i alt",value(flow.homeW),local,"Inkl. IVT")+
       node(790,218,150,"♨","IVT",value(flow.hpW),pump,"Varmepumpe")+
-      label(323,169,"Sol → hus",flow.pvOtherW,solar)+
+      label(323,169,"Sol → øvrigt hus",flow.pvOtherW,solar)+
       label(713,142,"Sol → IVT",flow.pvHpW,solar)+
       label(238,105,"Eksport",flow.exportW,local)+
-      label(320,348,"Import → hus",flow.gridOtherW,network)+
+      label(320,348,"Net → øvrigt hus",flow.gridOtherW,network)+
       label(700,358,"Net → IVT",flow.gridHpW,network)+
       '</svg></div>'+
       '<div class="power-breakdown"><div><span>Netimport</span><strong class="power-blue">'+this.esc(value(flow.importW))+'</strong></div>'+
