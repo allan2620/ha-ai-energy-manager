@@ -1,4 +1,4 @@
-# AI Energy Manager 2.3.1 – Nordic Night
+# AI Energy Manager 2.4.0 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
@@ -170,3 +170,21 @@ Energiflowet er flyttet **ind i det eksisterende, øverste husfelt**. Der er ikk
 - Ingen ekstra Home Assistant YAML, kortinstallation eller ændringer til den fysiske varmestyring.
 - Den eksisterende blinkfri DOM-opdatering bevares. Browserens indstilling for reduceret animation respekteres.
 - Den estimerede PV-/netfordeling er ikke en fysisk effektmåling på to separate IVT-ledninger.
+
+## Version 2.4.0 – vælg alle dashboardsensorer fra Rediger dashboard
+
+Den indbyggede dashboardeditor har nu et nyt afsnit **Alle sensorer på dashboardet**, opdelt efter solceller og energiflow, P1/import/eksport, IVT, varmtvand, Nilan, elpriser/vejr og AI-plan. Hvert sensorfelt har et søgbart tekstfelt med forslag fra Home Assistants eksisterende entities.
+
+- Vælg en ny entity for hvert felt, og gem direkte i **Rediger dashboard**.
+- Lad feltet være tomt for at bruge den oprindelige standardsensor.
+- Alle tidligere gemte indstillinger for layout, rækkefølge, farvetema og de seks KPI-felter beholdes.
+- Live energiflow bruger de valgte P1-, solcelle- og IVT-effektsensorer. Enheden skal stadig være W eller kW for at kunne indgå korrekt.
+- Detaljevisning og historik viser den faktisk valgte entity.
+- Der er også valg for AI-plan, målt COP, prisbudget, batteristand, tilstedeværelse og øvrige statusfelter, der vises i dashboardet.
+- Dashboardets kildeskift lagres kun i `.storage/ai_energy_manager_dashboard`. De ændrer **ikke** integrationsindstillinger eller automatisk regulering af varmepumpen.
+- Gem-knappen kræver en Home Assistant-administrator.
+- Den backendvaliderede liste omfatter eksisterende dashboardfelter; det er ikke en generel editor til at tilføje ubegrænset mange nye kort.
+
+**Installering:** HACS → AI Energy Manager → Opdater/geninstaller → genstart Home Assistant → Ctrl+F5 → AI Energy → Rediger dashboard → Alle sensorer på dashboardet. Udvid den relevante gruppe, søg efter en entity og klik Gem ændringer.
+
+GitHub Actions validerer både gammel og ny konfiguration og verificerer, at sensorvalg bruges i livevisningen.
