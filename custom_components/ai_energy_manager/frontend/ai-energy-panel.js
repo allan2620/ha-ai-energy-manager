@@ -149,7 +149,10 @@ class AIEnergyPanel extends HTMLElement {
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
-  st(id) { return this._hass?.states?.[id]; }
+  displayEntity(id) {
+    return this.getLayout().sensors?.[id] || id;
+  }
+  st(id) { return this._hass?.states?.[this.displayEntity(id)]; }
   n(id) {
     const s = this.st(id);
     if (!s || ["unknown", "unavailable", "none"].includes(String(s.state))) return null;
@@ -171,6 +174,7 @@ class AIEnergyPanel extends HTMLElement {
 
   get liveStatusSensor() {
     const states = this._hass?.states || {};
+    if(this.getLayout().sensors?.["sensor.ai_energy_manager_status"])return this.getLayout().sensors["sensor.ai_energy_manager_status"];
     return Object.values(states).find((x) =>
       x.entity_id?.startsWith("sensor.ai_energy_manager_") &&
       x.attributes?.friendly_name === "AI Energy Manager Status"
@@ -358,6 +362,7 @@ class AIEnergyPanel extends HTMLElement {
       (this.graphEntity ? this.graphHtml() : '<div>'+rows+diagnostic+'</div>')+'</div></div>';
   }
   async showMoreInfo(entityId, hours=24) {
+    entityId=this.displayEntity(entityId);
     if(!this.st(entityId))return;
     this.graphEntity=entityId;
     this.graphHours=hours;
@@ -441,7 +446,67 @@ class AIEnergyPanel extends HTMLElement {
     if(!this.editMode)this.render();
   }
   getLayout(){return this.layout||this.defaultLayout();}
-  getKpiSensor(key,fallback){return this.getLayout().sensors?.[key]||fallback;}
+  getKpiSensor(key,fallback){return this.getLayout().sensors?.[key]||this.displayEntity(fallback);}
+  editorSensorGroups() {
+    // Every dashboard source has its own key; defaults remain untouched.
+    // Existing six KPI overrides remain available for backward compatibility.
+    return [
+      ["Solceller og energiflow",[
+        ["sensor.danfoss_tlx_pro_241202n272_grid_power_total","Solproduktion / energiflow"],
+        ["sensor.danfoss_tlx_pro_241202n272_pv_power_string_1","Solstreng 1"],
+        ["sensor.danfoss_tlx_pro_241202n272_pv_power_string_2","Solstreng 2"],
+        ["sensor.danfoss_tlx_pro_241202n272_grid_energy_today_total","Solproduktion i dag"],
+        ["sensor.ai_energy_manager_pv_rest_i_dag","PV-prognose resten af dagen"],
+        ["sensor.ai_energy_manager_pv_i_morgen","PV-prognose i morgen"],
+      ]],
+      ["Elnet / P1 / import og eksport",[
+        ["sensor.p1_meter_power","P1 liveeffekt / import og eksport"],
+        ["sensor.p1_meter_power_phase_1","P1 fase 1"],
+        ["sensor.p1_meter_power_phase_2","P1 fase 2"],
+        ["sensor.p1_meter_power_phase_3","P1 fase 3"],
+        ["sensor.p1_meter_energy_import","Importeret energi"],
+        ["sensor.p1_meter_energy_export","Eksporteret energi"],
+      ]],
+      ["IVT varmepumpe",[
+        ["sensor.hp_power_consumption","IVT effekt / energiflow"],
+        ["binary_sensor.hp_compressor","Kompressorstatus"],
+        ["binary_sensor.hp_alarm","IVT alarm"],
+        ["sensor.hp_heat_carrier_forwrd","Fremløbstemperatur"],
+        ["sensor.hp_heat_carrier_return","Returløbstemperatur"],
+        ["climate.hp_room_temp_setpoint","IVT rumsetpunkt"],
+        ["climate.hp_heat_set_1_curvel","IVT varmekurve"],
+        ["climate.hp_heat_set_3_parallel","IVT parallelforskydning"],
+      ]],
+      ["Varmtvand",[
+        ["sensor.hp_warm_water_1_top","Varmtvand top"],
+        ["sensor.hp_warm_water_setpoint","Varmtvand setpunkt"],
+        ["climate.hp_extra_warm_water","Ekstra varmtvand"],
+        ["climate.hp_warm_water_stop_temp","Varmtvand stoptemperatur"],
+      ]],
+      ["Nilan ventilation",[
+        ["climate.boiler_room_nilan_hvac","Nilan drift og ventilatortrin"],
+        ["sensor.boiler_room_nilan_humidity","Luftfugtighed"],
+        ["sensor.boiler_room_nilan_exchanger_efficiency","Varmegenvinding"],
+        ["sensor.boiler_room_nilan_return_air_temperature_t3","T3 returtemperatur"],
+        ["sensor.boiler_room_nilan_user_panel_temperature_t15","T15 rumtemperatur"],
+        ["sensor.boiler_room_nilan_supply_air_temperature_t7","T7 indblæsning"],
+        ["sensor.boiler_room_nilan_supply_fan_speed","Indblæsningsventilator"],
+        ["sensor.boiler_room_nilan_return_fan_speed","Udsugningsventilator"],
+      ]],
+      ["Elpriser, CO₂ og vejr",[
+        ["sensor.energi_data_service","Elpriser og prisdiagram"],
+        ["sensor.energi_data_service_co2","CO₂-intensitet"],
+        ["weather.forecast_hjem","Vejrentitet"],
+        ["sensor.custom_weather_forecast_daily","Vejrudsigt"],
+        ["sensor.hp_outdoor","Udetemperatur"],
+      ]],
+      ["AI-analyse og plan",[
+        ["sensor.ai_energy_manager_status","AI status og beslutninger"],
+        ["sensor.ai_energy_manager_plan_naeste_48_timer","AI-plan næste 48 timer"],
+      ]],
+    ];
+  }
+
   editorGroups(){return {
     kpi:[["solar","Solproduktion"],["grid","Elnet"],["hp","IVT varmepumpe"],["nilan","Nilan ventilation"],["price","Elpris"],["weather","Udetemperatur"]],
     middle:[["ivt","IVT + varmtvand"],["ventilation","Nilan"]],
@@ -553,6 +618,8 @@ class AIEnergyPanel extends HTMLElement {
   }
 
   planEntity() {
+    const manual=this.getLayout().sensors?.["sensor.ai_energy_manager_plan_naeste_48_timer"];
+    if(manual)return manual;
     const states=Object.values(this._hass?.states||{});
     return states.find(x=>x.entity_id?.startsWith("sensor.ai_energy_manager_")&&
       x.attributes?.friendly_name==="AI Energy Manager Plan næste 48 timer")?.entity_id
