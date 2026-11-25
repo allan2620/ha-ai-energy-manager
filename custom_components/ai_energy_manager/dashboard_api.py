@@ -10,7 +10,7 @@ ALLOWED_GROUPS = {
     "bottom": ("production", "forecast", "prices", "log"),
 }
 ALLOWED_COLORS = ("nordic", "forest", "arctic", "violet")
-ENTITY_PATTERN = re.compile(r"^(sensor|binary_sensor|climate|weather|number|switch)\.[a-z0-9_]+$")
+ENTITY_PATTERN = re.compile(r"^(sensor|binary_sensor|climate|weather|number|switch|input_boolean|input_number|person|device_tracker)\.[a-z0-9_]+$")
 # Dashboard-only overrides. Physical control configuration is never modified.
 DISPLAY_SENSOR_IDS = (
     "sensor.danfoss_tlx_pro_241202n272_grid_power_total",
@@ -51,7 +51,14 @@ DISPLAY_SENSOR_IDS = (
     "sensor.custom_weather_forecast_daily",
     "sensor.hp_outdoor",
     "sensor.ai_energy_manager_plan_naeste_48_timer",
-    "sensor.ai_energy_manager_status"
+    "sensor.ai_energy_manager_status",
+    "sensor.ai_energy_manager_budget_24_timer_ved_konstant_belastning",
+    "sensor.ai_energy_manager_cop_malt",
+    "sensor.ai_energy_manager_foreslaet_varmtvandstid",
+    "sensor.ai_energy_manager_tilstedevaerelse",
+    "sensor.ai_energy_manager_batteristand",
+    "sensor.ai_energy_manager_malt_husforbrug",
+    "sensor.ai_energy_manager_begrundelse_for_varmtvandsplan"
 )
 DISPLAY_KEYS = set(DISPLAY_SENSOR_IDS) | set(ALLOWED_GROUPS["kpi"])
 MAX_SENSOR_OVERRIDES = len(DISPLAY_KEYS)
