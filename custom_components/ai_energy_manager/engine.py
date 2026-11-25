@@ -551,6 +551,7 @@ class Engine(DataUpdateCoordinator):
         next_hours = planning["hours"]
         return {
             "status": reason, "solar": solar, "export": export,
+            "export_positive": bool(cfg["export_positive"]),
             "pv": pv, "hp_power": hp, "target": target,
             "price": price, "room": room, "water": water,
             "forecast_low": cold, "cooling_rate": memory.get("cooling_rate"),
