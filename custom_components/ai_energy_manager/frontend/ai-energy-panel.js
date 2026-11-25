@@ -503,6 +503,13 @@ class AIEnergyPanel extends HTMLElement {
       ["AI-analyse og plan",[
         ["sensor.ai_energy_manager_status","AI status og beslutninger"],
         ["sensor.ai_energy_manager_plan_naeste_48_timer","AI-plan næste 48 timer"],
+        ["sensor.ai_energy_manager_budget_24_timer_ved_konstant_belastning","Prisbudget 24 timer"],
+        ["sensor.ai_energy_manager_cop_malt","COP"],
+        ["sensor.ai_energy_manager_foreslaet_varmtvandstid","Foreslået varmtvandstid"],
+        ["sensor.ai_energy_manager_tilstedevaerelse","Tilstedeværelse"],
+        ["sensor.ai_energy_manager_batteristand","Batteristand"],
+        ["sensor.ai_energy_manager_malt_husforbrug","Målt husforbrug"],
+        ["sensor.ai_energy_manager_begrundelse_for_varmtvandsplan","Begrundelse for varmtvandsplan"],
       ]],
     ];
   }
@@ -662,10 +669,15 @@ class AIEnergyPanel extends HTMLElement {
     const maxPrice=prices.length?Math.max(...prices):null;
     const span=minPrice===null?"—":this.fmt(maxPrice-minPrice,2)+" kr/kWh";
     const projected=(maxPrice===null||minPrice===null)?"—":this.fmt(Math.max(0,maxPrice-minPrice)*2.5,2)+" kr";
-    const byName=(label)=>Object.values(this._hass?.states||{}).find(x=>x.entity_id?.startsWith("sensor.ai_energy_manager_")&&x.attributes?.friendly_name===label);
-    const budget=byName("AI Energy Manager Budget 24 timer ved konstant belastning")?.state;
-    const cop=byName("AI Energy Manager COP målt")?.state;
-    const slot=byName("AI Energy Manager Foreslået varmtvandstid")?.state;
+    const byName=(label,key)=>{
+      const override=this.getLayout().sensors?.[key];
+      if(override)return this.st(override);
+      return Object.values(this._hass?.states||{}).find(x=>
+        x.entity_id?.startsWith("sensor.ai_energy_manager_")&&x.attributes?.friendly_name===label);
+    };
+    const budget=byName("AI Energy Manager Budget 24 timer ved konstant belastning","sensor.ai_energy_manager_budget_24_timer_ved_konstant_belastning")?.state;
+    const cop=byName("AI Energy Manager COP målt","sensor.ai_energy_manager_cop_malt")?.state;
+    const slot=byName("AI Energy Manager Foreslået varmtvandstid","sensor.ai_energy_manager_foreslaet_varmtvandstid")?.state;
     const slotText=slot&&!["unknown","unavailable","none"].includes(slot)?
       new Date(slot).toLocaleString("da-DK",{weekday:"short",hour:"2-digit",minute:"2-digit"}):"—";
     const actualMode=status?.attributes?.energiprofil||"normal";
@@ -696,13 +708,11 @@ class AIEnergyPanel extends HTMLElement {
         (hour.overheating_risk?'<small class="plan-warning">Undgå ekstra varme</small>':'')+'</div>';
     }).join(""):'<div class="empty">Afventer timebaseret pris- og vejrplan.</div>';
     const overview=this.st(this.liveStatusSensor)?.attributes||{};
-    const coordinator=(name)=>Object.values(this._hass?.states||{}).find(x=>
-      x.entity_id?.startsWith("sensor.ai_energy_manager_") &&
-      x.attributes?.friendly_name==="AI Energy Manager "+name)?.state;
-    const presence=coordinator("Tilstedeværelse")||overview["tilstedeværelse"]||"unknown";
-    const batt=coordinator("Batteristand");
-    const house=coordinator("Målt husforbrug");
-    const hotwaterReason=coordinator("Begrundelse for varmtvandsplan")||"Afventer data";
+    const coordinator=(name,key)=>byName("AI Energy Manager "+name,key)?.state;
+    const presence=coordinator("Tilstedeværelse","sensor.ai_energy_manager_tilstedevaerelse")||overview["tilstedeværelse"]||"unknown";
+    const batt=coordinator("Batteristand","sensor.ai_energy_manager_batteristand");
+    const house=coordinator("Målt husforbrug","sensor.ai_energy_manager_malt_husforbrug");
+    const hotwaterReason=coordinator("Begrundelse for varmtvandsplan","sensor.ai_energy_manager_begrundelse_for_varmtvandsplan")||"Afventer data";
     const coordinated='<div class="plan-summary">'+
       '<div><span>Tilstedeværelse nu</span><strong>'+this.esc(presence==="home"?"Hjemme":presence==="away"?"Ude":"Ukendt")+'</strong></div>'+
       '<div><span>Batteristand</span><strong>'+this.esc(batt&&!["unknown","unavailable"].includes(batt)?batt+" %":"Ikke tilsluttet")+'</strong></div>'+
