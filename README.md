@@ -1,4 +1,4 @@
-# AI Energy Manager 2.2.0 – Nordic Night
+# AI Energy Manager 2.2.1 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
@@ -131,3 +131,12 @@ En ny **rådgivende koordinering** kombinerer elpriser, vejr/vind, eksisterende 
 **Sikkerhed:** Kun eksisterende IVT-rumsetpunktstyring kan skrive til hardware, og kun efter bekræftelse af rumføler, aktiveret skriveadgang og deaktiveret testtilstand. Øvrig koordinering er rådgivende og ændrer ikke kompressorstyringen direkte. Start med `test_mode=true`.
 
 **Begrænsninger:** Dette er ikke en gennemført optimering af fremtidig tilstedeværelse, batteriafladning eller termisk COP. Hverken batteriets BMS, PV-inverter, Nilan, EV-lader eller ekstra varmtvandsfunktion aktiveres af de nye råd.
+
+
+## Version 2.2.1 – stabil live-visning uden blink
+
+- Liveopdateringer bruger nu en inkrementel DOM-patch frem for at genopbygge hele dashboardet via `shadowRoot.innerHTML`.
+- Kun ændrede tekst- og attributværdier justeres; eksisterende kort, grafer, animationer og vandret scroll bevarer deres DOM-elementer.
+- Hændelseslyttere bindes kun én gang pr. element, herunder til dashboardeditoren.
+- Sensoropdateringer begrænses i frontend til højst cirka én pr. 750 ms, og fokuserede valgfelter opdateres ikke midt i brugerens redigering.
+- Ingen ændringer af varmepumpens fysiske styringslogik. Test både desktop, tablet og mobil efter opdatering og Ctrl+F5.
