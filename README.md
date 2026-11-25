@@ -1,4 +1,4 @@
-# AI Energy Manager 2.3.0 – Nordic Night
+# AI Energy Manager 2.3.1 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
@@ -159,3 +159,14 @@ Kortet viser:
 Animerede pile vises fra **50 W**, så små udsving ikke giver flimren. Foretrukken reduceret animation (reduced motion) respekteres. Kortet bruger den eksisterende blinkfrie, inkrementelle opdatering fra version 2.2.1.
 
 CI tester nu strømbevarelse, import/eksport, fortegn, W/kW, manglende sensorer og batterispærring med Node ud over Python-tests. **Ingen af flowkortets beregninger sender styringskommandoer** til varmepumpe, Nilan eller inverter.
+
+## Version 2.3.1 – integreret flow i husfeltet
+
+Energiflowet er flyttet **ind i det eksisterende, øverste husfelt**. Der er ikke længere en selvstændig fuldbredde-flowsektion nedenunder. Den oprindelige opstilling med solceller og elnet til venstre, huset i midten og IVT/varmtvand/Nilan til højre er bevaret.
+
+- Et nyt arkitektonisk SVG-hus med 3D-detaljer, solpaneler, vinduer, belysning og garagefløj med to porte.
+- Diskrete, animerede energiforbindelser bag huset og ved de relevante kort.
+- Tal for netimport, neteksport og estimeret sol-/netfordeling til IVT under den oprindelige figur **i samme felt**.
+- Ingen ekstra Home Assistant YAML, kortinstallation eller ændringer til den fysiske varmestyring.
+- Den eksisterende blinkfri DOM-opdatering bevares. Browserens indstilling for reduceret animation respekteres.
+- Den estimerede PV-/netfordeling er ikke en fysisk effektmåling på to separate IVT-ledninger.
