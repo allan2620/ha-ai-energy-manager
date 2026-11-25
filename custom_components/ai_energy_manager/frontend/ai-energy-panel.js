@@ -598,6 +598,108 @@ class AIEnergyPanel extends HTMLElement {
       '</section>';
   }
 
+
+  // W/kW conversion for measurements selected through the dashboard editor.
+  flowPower(entityId) {
+    const state=this.st(entityId);
+    if(!state || ["unavailable","unknown","none"].includes(String(state.state))) return null;
+    const power=Number(state.state), unit=state.attributes?.unit_of_measurement;
+    if(!Number.isFinite(power))return null;
+    if(unit==="W")return power;
+    if(unit==="kW")return power*1000;
+    return null;
+  }
+
+  // Proportional accounting: net grid + PV = on-site load, provided no other
+  // electrical source/storage is discharging/charging behind the meter.
+  // PV->HP is estimated by proportional allocation, not physically metered.
+  calculateLiveFlow(pv, grid, hp, exportPositive=false, batteryPower=null) {
+    if([pv,grid,hp].some(v=>v===null||!Number.isFinite(v))){
+      return {valid:false,reason:"Mangler effektmåling eller korrekt måleenhed (W/kW)"};
+    }
+    if(pv<0 || hp<0){
+      return {valid:false,reason:"PV eller IVT angiver negativ effekt – kontrollér sensorvalg"};
+    }
+    if(batteryPower!==null && Number.isFinite(batteryPower) && Math.abs(batteryPower)>50){
+      return {valid:false,reason:"Batteriet udveksler strøm – fordelingen kan ikke beregnes sikkert uden verificeret batterifortegn"};
+    }
+    const signedGrid=exportPositive?-grid:grid; // positive import, negative export
+    const importW=Math.max(0,signedGrid);
+    const exportW=Math.max(0,-signedGrid);
+    const loadW=pv+signedGrid;
+    if(loadW < -50 || hp>loadW+100){
+      return {valid:false,reason:"P1, solproduktion og IVT-forbrug stemmer ikke – kontrollér fortegn og sensorer",
+        importW,exportW,pvW:pv,hpW:hp};
+    }
+    const total=Math.max(0,loadW);
+    const compressor=Math.min(hp,total);
+    const pvUsed=Math.min(pv,total);
+    const share=total>0?compressor/total:0;
+    const pvHp=pvUsed*share;
+    const gridHp=compressor-pvHp;
+    const otherPv=pvUsed-pvHp;
+    const otherGrid=importW-gridHp;
+    return {
+      valid:true, pvW:pv, hpW:hp, importW, exportW,
+      homeW:total,otherW:Math.max(0,total-compressor),
+      pvHpW:pvHp,gridHpW:Math.max(0,gridHp),
+      pvOtherW:Math.max(0,otherPv),gridOtherW:Math.max(0,otherGrid),
+      estimated:true,
+      disclaimer:"Beregnet proportional fordeling – ikke målt strøm fra en bestemt kilde til IVT. Forudsætter ingen aktiv batteriudveksling."
+    };
+  }
+
+  flowDiagramHtml(flow) {
+    const format=n=>this.fmt(Math.max(0,n)/1000,2)+" kW";
+    const value=n=>flow.valid?format(n):"—";
+    const active=(n)=>flow.valid && n>=50;
+    const edge=(path,amount,color,reverse=false,title="")=>{
+      const show=active(amount);
+      return '<g class="power-edge '+(show?'active':'inactive')+'" aria-label="'+this.esc(title)+'">'+
+        '<path d="'+path+'" fill="none" stroke="'+color+'" stroke-width="4" opacity="'+(show?".28":".08")+'" stroke-linecap="round"/>'+
+        (show?'<path d="'+path+'" fill="none" stroke="'+color+'" stroke-width="4" class="power-dash '+(reverse?'reverse':'')+'" stroke-linecap="round"/>':"")+
+        '</g>';
+    };
+    const label=(x,y,label,amount,color)=>'<g><rect x="'+(x-63)+'" y="'+(y-18)+'" width="126" height="37" rx="10" fill="#132b3e" stroke="'+color+'" stroke-opacity=".55"/>'+
+       '<text x="'+x+'" y="'+(y-4)+'" font-size="11" fill="#bed0e1" text-anchor="middle">'+this.esc(label)+'</text>'+
+       '<text x="'+x+'" y="'+(y+12)+'" font-size="14" fill="#fff" font-weight="700" text-anchor="middle">'+this.esc(value(amount))+'</text></g>';
+    const node=(x,y,w,icon,title,power,color,detail)=>'<g>'+
+      '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="84" rx="16" fill="#12273b" stroke="'+color+'" stroke-width="1.6"/>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+18)+'" text-anchor="middle" font-size="16" fill="'+color+'">'+icon+'</text>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+38)+'" text-anchor="middle" font-size="14" fill="#d9eafd">'+this.esc(title)+'</text>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+60)+'" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">'+this.esc(power)+'</text>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+75)+'" text-anchor="middle" font-size="9" fill="#aec5d5">'+this.esc(detail)+'</text></g>';
+    const solar="#f2c96b",network="#80bdfa",local="#6bdaad",pump="#c49df4";
+    return '<section class="power-panel" aria-label="Live energiflow mellem solceller, elnet, hus og varmepumpe">'+
+      '<div class="power-head"><h2><ha-icon icon="mdi:transmission-tower"></ha-icon> Live energiflow</h2>'+
+      '<span class="power-hint">Import / eksport · beregnet fordeling til IVT</span></div>'+
+      '<div class="power-scroll"><svg class="power-svg" viewBox="0 0 950 428" role="img" aria-label="Strømflow for hus, solceller, elnet og IVT">'+
+      // Edges are drawn behind all nodes. Arrow direction follows path order.
+      edge("M475 112 L475 246",flow.pvOtherW,solar,false,"Solceller til øvrigt hus")+
+      edge("M550 81 Q730 105 790 225",flow.pvHpW,solar,false,"Estimeret solcellestrøm til varmepumpe")+
+      edge("M390 80 Q210 95 155 219",flow.exportW,local,false,"Solceller til elnet, eksport")+
+      edge("M155 286 Q270 311 390 287",flow.gridOtherW,network,false,"Elnet til øvrigt hus")+
+      edge("M155 292 Q455 418 790 290",flow.gridHpW,network,false,"Estimeret netstrøm til varmepumpe")+
+      node(390,29,170,"☀","Solceller",value(flow.pvW),solar,"Aktuel produktion")+
+      node(70,218,170,"⚡","Elnet",flow.valid?value(flow.importW||flow.exportW):"—",network,flow.valid?(flow.exportW>=50?"EKSPORT":flow.importW>=50?"IMPORT":"BALANCE"):"Ukendt")+
+      node(390,247,170,"⌂","Hus i alt",value(flow.homeW),local,"Inkl. IVT")+
+      node(790,218,150,"♨","IVT",value(flow.hpW),pump,"Varmepumpe")+
+      label(323,169,"Sol → hus",flow.pvOtherW,solar)+
+      label(713,142,"Sol → IVT",flow.pvHpW,solar)+
+      label(238,105,"Eksport",flow.exportW,local)+
+      label(320,348,"Import → hus",flow.gridOtherW,network)+
+      label(700,358,"Net → IVT",flow.gridHpW,network)+
+      '</svg></div>'+
+      '<div class="power-breakdown"><div><span>Netimport</span><strong class="power-blue">'+this.esc(value(flow.importW))+'</strong></div>'+
+      '<div><span>Neteksport</span><strong class="power-green">'+this.esc(value(flow.exportW))+'</strong></div>'+
+      '<div><span>Estimeret sol → IVT</span><strong class="power-yellow">'+this.esc(value(flow.pvHpW))+'</strong></div>'+
+      '<div><span>Estimeret net → IVT</span><strong class="power-blue">'+this.esc(value(flow.gridHpW))+'</strong></div>'+
+      '<div><span>Øvrigt husforbrug</span><strong>'+this.esc(value(flow.otherW))+'</strong></div></div>'+
+      (!flow.valid?'<p class="power-warning"><ha-icon icon="mdi:alert-circle-outline"></ha-icon>'+this.esc(flow.reason)+'</p>':
+       '<p class="power-disclaimer">'+this.esc(flow.disclaimer)+'</p>')+
+      '</section>';
+  }
+
   render() {
     if (!this._hass) return;
     // Keep the user's position when live values refresh the dashboard.
@@ -693,7 +795,21 @@ class AIEnergyPanel extends HTMLElement {
       ];
     }
 
-    const netLabel = grid === null ? "ukendt" : grid > 0 ? "import" : grid < 0 ? "eksport" : "balance";
+    const gridStatus=this.st(this.liveStatusSensor)?.attributes||{};
+    const exportPositive=gridStatus.p1_positiv_eksport===true;
+    const batteryEntry=Object.values(this._hass?.states||{}).find(x=>
+      x.entity_id?.startsWith("sensor.ai_energy_manager_")&&
+      x.attributes?.friendly_name==="AI Energy Manager Batterieffekt");
+    const batteryRaw= batteryEntry && !["unknown","unavailable"].includes(batteryEntry.state)?
+      Number(batteryEntry.state):null;
+    const batteryPower=Number.isFinite(batteryRaw)?batteryRaw:null;
+    const flowValues=this.calculateLiveFlow(
+      demo?4250:this.flowPower(this.getKpiSensor("solar","sensor.danfoss_tlx_pro_241202n272_grid_power_total")),
+      demo?-600:this.flowPower(this.getKpiSensor("grid","sensor.p1_meter_power")),
+      hpPower, demo?false:exportPositive, demo?null:batteryPower
+    );
+    const netLabel = grid === null ? "ukendt" : (exportPositive ? grid<0 : grid>0) ? "import" :
+      grid===0 ? "balance" : "eksport";
     const statusClass = faults.length ? 'warn' : 'ok';
     const importKw = grid === null ? '—' : `${this.fmt(Math.abs(grid) / 1000)} kW`;
     const pvKw = pv === null ? '—' : `${this.fmt(pv / 1000)} kW`;
@@ -733,6 +849,25 @@ class AIEnergyPanel extends HTMLElement {
         .flow-card ha-icon{--mdc-icon-size:58px}.flow-card strong{display:block;font-size:22px;color:#fff}.flow-card span{font-size:18px;color:#e8f2fc}.flow-card .sub{margin-top:2px;font-size:14px;color:#bfe9cb}
         .flow-card.solar{box-shadow:0 0 22px rgba(70,228,122,.12)}
         .house-center{display:flex;flex-direction:column;align-items:center}.house-svg{width:100%;max-width:560px;height:auto;display:block}.center-note{margin-top:10px;padding:10px 18px;border-radius:14px;border:1px solid #4a6783;background:rgba(22,36,53,.65);color:#d8e6f4;font-size:16px}
+        .power-panel{margin-top:14px;padding:16px 18px;border-radius:20px;border:1px solid #35526d;background:linear-gradient(180deg,#102338,#081925)}
+        .power-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+        .power-head h2{display:flex;align-items:center;gap:10px;font-size:22px;margin:0}
+        .power-hint{font-size:12px;color:#a8c0d5}
+        .power-scroll{overflow-x:auto;overscroll-behavior-x:contain}
+        .power-svg{display:block;width:100%;min-width:650px;max-width:1100px;margin:auto;height:auto}
+        .power-edge .power-dash{stroke-dasharray:9 16;animation:power-travel 1.5s linear infinite;opacity:.93}
+        .power-edge .power-dash.reverse{animation-direction:reverse}
+        @keyframes power-travel{to{stroke-dashoffset:-50}}
+        .power-breakdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+        .power-breakdown>div{border:1px solid #36546d;border-radius:11px;background:#13293b;padding:9px 12px}
+        .power-breakdown span{font-size:12px;display:block;color:#aabfd2}
+        .power-breakdown strong{font-size:19px;color:#e8f3ff}
+        .power-breakdown .power-blue{color:#9ccaff}
+        .power-breakdown .power-green{color:#90e5b5}
+        .power-breakdown .power-yellow{color:#f2d67c}
+        .power-warning,.power-disclaimer{font-size:12px;color:#b6ccde;margin:10px 1px 0}
+        .power-warning{color:#ffbc9b;display:flex;gap:7px;align-items:center}
+        @media(prefers-reduced-motion:reduce){.power-edge .power-dash{animation:none}}
         .mid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;margin-top:14px}
         .panel{border:1px solid #294862;border-radius:20px;padding:14px 16px;background:linear-gradient(180deg,rgba(9,22,34,.95),rgba(10,18,27,.95));box-shadow:0 0 30px rgba(0,0,0,.18)}
         .panel h2{display:flex;align-items:center;gap:10px;font-size:22px;margin:0 0 12px}.panel h2 ha-icon{--mdc-icon-size:28px}
@@ -871,6 +1006,7 @@ class AIEnergyPanel extends HTMLElement {
               </div>
             </div>
           </section>
+          ${this.flowDiagramHtml(flowValues)}
           <div class="mid">
             <section class="panel">
               <h2><ha-icon icon="mdi:radiator"></ha-icon>IVT + Varmtvand</h2>
