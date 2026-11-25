@@ -1,4 +1,4 @@
-# AI Energy Manager 2.2.1 – Nordic Night
+# AI Energy Manager 2.3.0 – Nordic Night
 
 **En eksperimentel Home Assistant Custom Integration med lokal regelbaseret energiplanlægning.** Den bruger ikke en trænet AI-model eller en ekstern AI-tjeneste. Den er ikke prøvekørt på dit Home Assistant- og Husdata-anlæg.
 
@@ -140,3 +140,22 @@ En ny **rådgivende koordinering** kombinerer elpriser, vejr/vind, eksisterende 
 - Hændelseslyttere bindes kun én gang pr. element, herunder til dashboardeditoren.
 - Sensoropdateringer begrænses i frontend til højst cirka én pr. 750 ms, og fokuserede valgfelter opdateres ikke midt i brugerens redigering.
 - Ingen ændringer af varmepumpens fysiske styringslogik. Test både desktop, tablet og mobil efter opdatering og Ctrl+F5.
+
+## Version 2.3.0 – animeret energiflow (P1, PV, hus og IVT)
+
+Et indbygget **Live energiflow**-kort vises nu direkte i Nordic Night-dashboardet. Det kræver **ingen separat YAML, Mushroom-kort, HACS frontendkort eller hjælpesensorer**. Tilgængelige målinger hentes fra de allerede konfigurerede Home Assistant-entities.
+
+Kortet viser:
+- Aktuel Danfoss solproduktion og P1-nettoeffekt
+- Reelt målt **netimport** og **neteksport**, aldrig begge på én gang
+- Beregnet samlet forbrug i huset (inklusive IVT)
+- IVT's elektriske forbrug og et **estimat** over fordelingen mellem solceller og elnet til IVT
+- Separate animerede pile fra solceller til øvrigt hus, solceller til IVT, solceller til elnet, elnet til øvrigt hus og elnet til IVT
+
+**Måleforudsætninger:** Husholdningens samlede effekt estimeres som `PV + nettoimport - nettoeksport`. Forventet PV/elnetsandel til IVT fordeles proportionalt efter samtidige effekter. Det er **ikke** en direkte fysisk måling af elektroner til IVT. Ved aktivt eller ukendt batteriflow, manglende sol-/IVT-data eller inkonsistent effektregnskab skjules den usikre fordeling, mens den **målte** import/eksport fortsat vises. Sensorer i både W og kW understøttes. Beregningsmodellen forudsætter, at PV og P1 dækker hele det relevante effektregnskab, samt at øvrige lokale energikilder/batterier ikke tilfører eller aftager effekt.
+
+**P1-fortegn:** Under **AI Energy Manager → Konfigurer** findes indstillingen `export_positive` / “Positiv P1-effekt betyder eksport”. Standard er **fra**: positiv P1 = import, negativ P1 = eksport. Kontrollér målerens faktiske fortegn ved både import og eksport, før kortets retning anvendes.
+
+Animerede pile vises fra **50 W**, så små udsving ikke giver flimren. Foretrukken reduceret animation (reduced motion) respekteres. Kortet bruger den eksisterende blinkfrie, inkrementelle opdatering fra version 2.2.1.
+
+CI tester nu strømbevarelse, import/eksport, fortegn, W/kW, manglende sensorer og batterispærring med Node ud over Python-tests. **Ingen af flowkortets beregninger sender styringskommandoer** til varmepumpe, Nilan eller inverter.
