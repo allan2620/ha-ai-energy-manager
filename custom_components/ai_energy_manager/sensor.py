@@ -80,6 +80,7 @@ class Metric(CoordinatorEntity, SensorEntity):
                 "manuel_pause": data.get("manual_hold", False),
                 "fejl": data.get("faults", []),
                 "testtilstand": data.get("test_mode", True),
+                "p1_positiv_eksport": data.get("export_positive", False),
                 "kompressor_pause": data.get("cooldown", False),
                 "energiprofil": data.get("mode", "normal"),
                 "ekstra_varmtvand_foreslået": data.get("dhw_suggestion", False),
