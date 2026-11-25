@@ -11,6 +11,50 @@ ALLOWED_GROUPS = {
 }
 ALLOWED_COLORS = ("nordic", "forest", "arctic", "violet")
 ENTITY_PATTERN = re.compile(r"^(sensor|binary_sensor|climate|weather|number|switch)\.[a-z0-9_]+$")
+# Dashboard-only overrides. Physical control configuration is never modified.
+DISPLAY_SENSOR_IDS = (
+    "sensor.danfoss_tlx_pro_241202n272_grid_power_total",
+    "sensor.danfoss_tlx_pro_241202n272_pv_power_string_1",
+    "sensor.danfoss_tlx_pro_241202n272_pv_power_string_2",
+    "sensor.danfoss_tlx_pro_241202n272_grid_energy_today_total",
+    "sensor.ai_energy_manager_pv_rest_i_dag",
+    "sensor.ai_energy_manager_pv_i_morgen",
+    "sensor.p1_meter_power",
+    "sensor.p1_meter_power_phase_1",
+    "sensor.p1_meter_power_phase_2",
+    "sensor.p1_meter_power_phase_3",
+    "sensor.p1_meter_energy_import",
+    "sensor.p1_meter_energy_export",
+    "binary_sensor.hp_compressor",
+    "sensor.hp_power_consumption",
+    "sensor.hp_heat_carrier_forwrd",
+    "sensor.hp_heat_carrier_return",
+    "climate.hp_room_temp_setpoint",
+    "climate.hp_heat_set_1_curvel",
+    "climate.hp_heat_set_3_parallel",
+    "binary_sensor.hp_alarm",
+    "sensor.hp_warm_water_1_top",
+    "sensor.hp_warm_water_setpoint",
+    "climate.hp_extra_warm_water",
+    "climate.hp_warm_water_stop_temp",
+    "climate.boiler_room_nilan_hvac",
+    "sensor.boiler_room_nilan_humidity",
+    "sensor.boiler_room_nilan_exchanger_efficiency",
+    "sensor.boiler_room_nilan_return_air_temperature_t3",
+    "sensor.boiler_room_nilan_user_panel_temperature_t15",
+    "sensor.boiler_room_nilan_supply_air_temperature_t7",
+    "sensor.boiler_room_nilan_supply_fan_speed",
+    "sensor.boiler_room_nilan_return_fan_speed",
+    "sensor.energi_data_service",
+    "sensor.energi_data_service_co2",
+    "weather.forecast_hjem",
+    "sensor.custom_weather_forecast_daily",
+    "sensor.hp_outdoor",
+    "sensor.ai_energy_manager_plan_naeste_48_timer",
+    "sensor.ai_energy_manager_status"
+)
+DISPLAY_KEYS = set(DISPLAY_SENSOR_IDS) | set(ALLOWED_GROUPS["kpi"])
+MAX_SENSOR_OVERRIDES = len(DISPLAY_KEYS)
 MAX_LABEL = 32
 
 
@@ -63,10 +107,10 @@ def validate_layout(raw):
             base["labels"][key] = val.strip()
 
     sensors = raw.get("sensors", {})
-    if not isinstance(sensors, dict) or len(sensors) > len(ALLOWED_GROUPS["kpi"]):
+    if not isinstance(sensors, dict) or len(sensors) > MAX_SENSOR_OVERRIDES:
         raise ValueError("Invalid sensor overrides")
     for key, val in sensors.items():
-        if key not in ALLOWED_GROUPS["kpi"] or not isinstance(val, str) or not ENTITY_PATTERN.fullmatch(val):
+        if key not in DISPLAY_KEYS or not isinstance(val, str) or not ENTITY_PATTERN.fullmatch(val):
             raise ValueError("Invalid sensor override")
         base["sensors"][key] = val
     return base
