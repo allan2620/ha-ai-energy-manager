@@ -218,42 +218,81 @@ class AIEnergyPanel extends HTMLElement {
   }
 
   energyHouseSvg() {
+    // A self-contained isometric home illustration. It is deliberately
+    // separate from the live-flow overlay so animations never cover the facade.
     return `
-      <svg viewBox="0 0 520 220" class="house-svg" aria-label="Hus med energiflow">
+      <svg viewBox="0 0 560 260" class="house-svg" role="img" aria-label="Moderne hus med solpaneler, lys i vinduerne og to garageporte">
         <defs>
-          <linearGradient id="roofGlow" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0%" stop-color="#355a7f"/>
-            <stop offset="100%" stop-color="#12263a"/>
+          <linearGradient id="aem23Roof" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#416986"/>
+            <stop offset=".52" stop-color="#21405c"/>
+            <stop offset="1" stop-color="#101f32"/>
           </linearGradient>
-          <linearGradient id="windowGlow" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stop-color="#ffd498"/>
-            <stop offset="100%" stop-color="#f2a94c"/>
+          <linearGradient id="aem23Front" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#344c60"/>
+            <stop offset=".63" stop-color="#22374d"/>
+            <stop offset="1" stop-color="#132437"/>
           </linearGradient>
-          <filter id="softGlow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <linearGradient id="aem23Side" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#1c3a53"/>
+            <stop offset="1" stop-color="#101c2d"/>
+          </linearGradient>
+          <linearGradient id="aem23Glass" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#e9bd76"/>
+            <stop offset=".55" stop-color="#9ed3e6"/>
+            <stop offset="1" stop-color="#335c7e"/>
+          </linearGradient>
+          <linearGradient id="aem23Panels" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#1d6b8e"/>
+            <stop offset=".42" stop-color="#0f3856"/>
+            <stop offset="1" stop-color="#0b1c38"/>
+          </linearGradient>
+          <filter id="aem23Shadow" x="-35%" y="-65%" width="170%" height="230%">
+            <feGaussianBlur stdDeviation="8"/>
+          </filter>
+          <filter id="aem23WarmGlow" x="-45%" y="-45%" width="190%" height="190%">
+            <feGaussianBlur stdDeviation="5"/>
+          </filter>
         </defs>
-        <rect x="110" y="88" width="300" height="95" rx="6" fill="#17293d" stroke="#3e6382" stroke-width="3"/>
-        <path d="M85 97 L260 18 L435 97" fill="none" stroke="#87b7de" stroke-width="6" stroke-linecap="round"/>
-        <path d="M100 96 L260 28 L420 96 L394 100 L260 43 L126 100 Z" fill="url(#roofGlow)" stroke="#6f95b7" stroke-width="2"/>
-        <polygon points="164,68 245,35 322,70 239,103" fill="#1c4b6b" stroke="#95d0f7" stroke-width="2"/>
-        <g stroke="#8bc4f0" stroke-width="1">
-          <line x1="179" y1="61" x2="256" y2="94"/><line x1="195" y1="54" x2="271" y2="87"/><line x1="210" y1="48" x2="286" y2="81"/><line x1="225" y1="42" x2="302" y2="75"/>
-          <line x1="230" y1="39" x2="214" y2="97"/><line x1="249" y1="46" x2="232" y2="103"/><line x1="267" y1="54" x2="251" y2="110"/><line x1="286" y1="62" x2="270" y2="117"/>
+        <ellipse cx="274" cy="231" rx="212" ry="15" fill="#010a14" opacity=".8" filter="url(#aem23Shadow)"/>
+        <!-- Low garage wing set back behind the main volume -->
+        <polygon points="61,142 159,94 231,134 131,181" fill="url(#aem23Roof)" stroke="#6e9bb8" stroke-width="2.1"/>
+        <path d="M73 149 L132 176 L132 217 L73 194 Z" fill="#13273b" stroke="#54748d" stroke-width="1.3"/>
+        <path d="M132 176 L227 136 L227 215 L132 217 Z" fill="url(#aem23Side)" stroke="#37576e" stroke-width="1.3"/>
+        <path d="M145 176 L178 162 L178 210 L145 211 Z M185 160 L218 146 L218 207 L185 209 Z" fill="#213b51" stroke="#5d849e" stroke-width="1.1"/>
+        <path d="M150 184 L174 174 M190 168 L213 158 M145 195 L178 181 M185 184 L218 171" stroke="#658ba5" stroke-width=".7" opacity=".55"/>
+        <path d="M63 140 L160 91 L231 131" fill="none" stroke="#9dc2df" stroke-width="3.2" stroke-linejoin="round"/>
+        <!-- Main pitched roof and three-dimensional architectural surfaces -->
+        <polygon points="139,131 298,46 472,131 435,140 299,73 170,144" fill="url(#aem23Roof)" stroke="#8db2cf" stroke-width="2.2"/>
+        <polygon points="139,131 170,144 170,220 139,204" fill="#0e2439" stroke="#476782" stroke-width="1.3"/>
+        <polygon points="170,144 299,73 435,140 435,222 170,220" fill="url(#aem23Front)" stroke="#50748d" stroke-width="1.7"/>
+        <path d="M299 74 L299 219 M170 170 L435 171" stroke="#7090aa" opacity=".23" stroke-width="1"/>
+        <path d="M144 131 L298 53 L468 132" fill="none" stroke="#a7cfe7" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M170 143 L299 74 L435 141" fill="none" stroke="#254962" stroke-width="3"/>
+        <!-- Solar array follows roof perspective; module rails and reflections -->
+        <polygon points="231,91 296,58 386,104 321,137" fill="url(#aem23Panels)" stroke="#94ddf9" stroke-width="2"/>
+        <g stroke="#72c7f2" stroke-width=".85" opacity=".9">
+          <path d="M246 83 L337 129 M261 76 L352 122 M276 68 L367 114"/>
+          <path d="M249 100 L315 67 M269 110 L335 78 M290 120 L355 89 M311 131 L376 99"/>
         </g>
-        <rect x="150" y="104" width="65" height="49" rx="3" fill="url(#windowGlow)" opacity="0.92"/>
-        <rect x="225" y="104" width="65" height="49" rx="3" fill="url(#windowGlow)" opacity="0.90"/>
-        <rect x="300" y="104" width="65" height="49" rx="3" fill="url(#windowGlow)" opacity="0.88"/>
-        <rect x="248" y="118" width="42" height="65" rx="2" fill="#264862" stroke="#7298b6"/>
-        <ellipse cx="261" cy="186" rx="170" ry="14" fill="#0a1018" opacity="0.7"/>
-        <rect x="212" y="30" width="96" height="38" rx="18" fill="#162638" stroke="#4f6f8d" stroke-width="2"/>
-        <path d="M244 55v-11l16-10 16 10v11" fill="none" stroke="#dbeeff" stroke-width="2"/>
-        <path d="M252 56v-9h16v9" fill="none" stroke="#dbeeff" stroke-width="2"/>
-        <text x="286" y="55" fill="#f2f8ff" font-size="22" font-weight="700">Hus</text>
-        <g filter="url(#softGlow)">
-          <path d="M0 112 H116" stroke="#49d67a" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path d="M404 110 H520" stroke="#49d67a" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path d="M390 111 h32 q15 0 15 -16 v-16" stroke="#49d67a" stroke-width="5" fill="none" stroke-linecap="round"/>
-          <path d="M390 111 h32 q15 0 15 16 v16" stroke="#49d67a" stroke-width="5" fill="none" stroke-linecap="round"/>
-        </g>
+        <path d="M250 88 L298 65 L336 85" fill="none" stroke="#c2edff" stroke-width="1.5" opacity=".65"/>
+        <!-- Window glow remains restrained for Nordic Night -->
+        <rect x="193" y="156" width="55" height="47" rx="3" fill="#f5b35c" opacity=".14" filter="url(#aem23WarmGlow)"/>
+        <rect x="193" y="155" width="55" height="49" rx="3" fill="url(#aem23Glass)" stroke="#94bdd1" stroke-width="1.8"/>
+        <rect x="266" y="155" width="55" height="49" rx="3" fill="url(#aem23Glass)" stroke="#94bdd1" stroke-width="1.8"/>
+        <rect x="339" y="155" width="66" height="49" rx="3" fill="url(#aem23Glass)" stroke="#94bdd1" stroke-width="1.8"/>
+        <path d="M221 155 V204 M193 180 H248 M293 155 V204 M266 180 H321 M372 155 V204 M339 180 H405" stroke="#32516b" stroke-width="3"/>
+        <!-- Entrance, architectural lighting, foundation -->
+        <rect x="271" y="195" width="44" height="26" rx="2" fill="#1c3b52" stroke="#89b7ce" stroke-width="1.3"/>
+        <path d="M306 203 V213" stroke="#b7d9e7" stroke-width="2"/>
+        <path d="M169 220 L437 222 L447 226 L163 225 Z" fill="#50677b" opacity=".75"/>
+        <path d="M195 210 H248 M338 210 H404" stroke="#90c6e4" stroke-width="1.3" opacity=".55"/>
+        <circle cx="181" cy="189" r="2" fill="#fce0a2"/>
+        <circle cx="421" cy="189" r="2" fill="#fce0a2"/>
+        <!-- Small, calm house identity below the roof -->
+        <rect x="212" y="222" width="175" height="27" rx="13.5" fill="#102a3c" stroke="#547d9d"/>
+        <circle cx="231" cy="235" r="4" fill="#64e0a4"/>
+        <text x="245" y="239" font-size="13" font-weight="600" fill="#e5f5ff" letter-spacing="1">HUS · LIVE</text>
       </svg>`;
   }
 
