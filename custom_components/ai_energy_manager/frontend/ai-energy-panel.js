@@ -523,9 +523,10 @@ class AIEnergyPanel extends HTMLElement {
         ids.map((id,index)=>{
           const hidden=layout.hidden.includes(id);
           const label=layout.labels[id]||labels[id];
-          const sensor=group==="kpi"?'<label class="editor-sensor">Sensor:<select data-sensor="'+id+'">'+
-            '<option value="">Standard</option>'+Object.keys(this._hass.states||{}).filter(x=>/^(sensor|binary_sensor|weather|climate|number|switch)\./.test(x)).sort().map(entity=>
-            '<option value="'+this.esc(entity)+'" '+(layout.sensors[id]===entity?'selected':'')+'>'+this.esc(entity)+'</option>').join("")+'</select></label>':"";
+          const sensor=group==="kpi"?'<label class="editor-sensor">Sensor:'+
+            '<input data-sensor="'+id+'" list="editor-entity-options" spellcheck="false" autocomplete="off" '+
+            'placeholder="Søg eller vælg entity..." value="'+this.esc(layout.sensors[id]||"")+'"/>'+
+            '<small>Tomt felt = standardsensor</small></label>':"";
           return '<div class="editor-item"><div class="editor-top"><b>'+this.esc(labels[id])+'</b>'+
             '<div class="editor-actions"><button type="button" data-move="'+id+'" data-group="'+group+'" data-direction="-1" '+(index===0?'disabled':'')+' aria-label="Flyt op">↑</button>'+
             '<button type="button" data-move="'+id+'" data-group="'+group+'" data-direction="1" '+(index===ids.length-1?'disabled':'')+' aria-label="Flyt ned">↓</button></div></div>'+
@@ -534,6 +535,21 @@ class AIEnergyPanel extends HTMLElement {
             sensor+'</div>';
         }).join("")+'</section>';
     }).join("");
+    const available=Object.keys(this._hass.states||{}).filter(id=>
+      /^(sensor|binary_sensor|weather|climate|number|switch|input_boolean|input_number|person|device_tracker)\.[a-z0-9_]+$/.test(id)).sort();
+    const options='<datalist id="editor-entity-options">'+available.map(id=>
+      '<option value="'+this.esc(id)+'">'+this.esc(this._hass.states[id]?.attributes?.friendly_name||id)+'</option>').join("")+'</datalist>';
+    const allSensors='<section class="editor-section"><h3>Alle sensorer på dashboardet</h3>'+
+      '<p>Vælg en hvilken som helst eksisterende Home Assistant-entity. Tomt felt bruger standarden. Ændringer gælder kun visningen, ikke energistyringen.</p>'+
+      this.editorSensorGroups().map(([heading,entries])=>
+        '<details class="editor-entity-group"><summary>'+this.esc(heading)+' <small>('+entries.length+' felter)</small></summary>'+
+        '<div class="editor-entity-grid">'+entries.map(([source,label])=>
+          '<label class="editor-entity-field"><strong>'+this.esc(label)+'</strong>'+
+          '<input data-sensor="'+this.esc(source)+'" list="editor-entity-options" spellcheck="false" autocomplete="off" '+
+          'value="'+this.esc(layout.sensors[source]||"")+'" placeholder="'+this.esc(source)+'"/>'+
+          '<small>Standard: '+this.esc(source)+'</small></label>'
+        ).join("")+'</div></details>'
+      ).join("")+'</section>';
     return '<div class="editor-overlay" id="editor-overlay"><div class="editor-dialog" role="dialog" aria-modal="true" aria-label="Rediger dashboard">'+
       '<header class="editor-header"><h2><ha-icon icon="mdi:pencil"></ha-icon> Rediger dashboard</h2><button type="button" id="editor-close">✕</button></header>'+
       '<p>Flyt felter med pilene, vælg sensorer og skjul felter. Ændringer påvirker kun visningen – ikke IVT- eller Nilan-styringen.</p>'+
@@ -542,7 +558,7 @@ class AIEnergyPanel extends HTMLElement {
       '<label>Farvetema:<select id="editor-accent">'+
       [["nordic","Nordic Night"],["forest","Nordic Green"],["arctic","Arctic Blue"],["violet","Nordic Violet"]].map(([value,name])=>
         '<option value="'+value+'" '+(layout.accent===value?'selected':'')+'>'+name+'</option>').join("")+'</select></label></div>'+
-      sections+'<footer class="editor-footer"><button id="editor-reset" type="button">Nulstil layout</button>'+
+      sections+allSensors+options+'<footer class="editor-footer"><button id="editor-reset" type="button">Nulstil layout</button>'+
       '<span></span><button type="button" id="editor-cancel">Annuller</button>'+
       '<button type="button" id="editor-save" '+(this.layoutSaving?'disabled':'')+'>'+(this.layoutSaving?'Gemmer…':'Gem ændringer')+'</button></footer></div></div>';
   }
@@ -558,14 +574,15 @@ class AIEnergyPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-label]").forEach(el=>this.listenOnce(el,"editor-change","change",()=>{
       this.layout.labels[el.dataset.label]=el.value.trim().slice(0,32);
     }));
-    this.shadowRoot.querySelectorAll("[data-visible]").forEach(el=>el.addEventListener("change",()=>{
+    this.shadowRoot.querySelectorAll("[data-visible]").forEach(el=>this.listenOnce(el,"editor-visible","change",()=>{
       const key=el.dataset.visible;
       this.layout.hidden=this.layout.hidden.filter(x=>x!==key);
       if(!el.checked)this.layout.hidden.push(key);
     }));
-    this.shadowRoot.querySelectorAll("[data-sensor]").forEach(el=>el.addEventListener("change",()=>{
+    this.shadowRoot.querySelectorAll("[data-sensor]").forEach(el=>this.listenOnce(el,"editor-sensor","change",()=>{
       const id=el.dataset.sensor;
-      if(el.value)this.layout.sensors[id]=el.value;
+      const entity=el.value.trim();
+      if(entity)this.layout.sensors[id]=entity;
       else delete this.layout.sensors[id];
     }));
     this.shadowRoot.querySelectorAll("[data-move]").forEach(el=>this.listenOnce(el,"editor-move","click",()=>{
@@ -576,6 +593,12 @@ class AIEnergyPanel extends HTMLElement {
     }));
     this.listenOnce(q("#editor-reset"),"editor-reset","click",()=>{this.layout=this.defaultLayout();this.editorError="";this.render();});
     this.listenOnce(q("#editor-save"),"editor-save","click",async()=>{
+      // Commit pending values even when the user clicks Save without blur.
+      this.shadowRoot.querySelectorAll("[data-sensor]").forEach(el=>{
+        const entity=el.value.trim();
+        if(entity)this.layout.sensors[el.dataset.sensor]=entity;
+        else delete this.layout.sensors[el.dataset.sensor];
+      });
       this.layout.title=q("#editor-title")?.value?.trim()||"AI Energy Manager";
       this.layout.accent=q("#editor-accent")?.value||"nordic";
       this.layoutSaving=true;this.editorError="";this.render();
@@ -956,6 +979,14 @@ class AIEnergyPanel extends HTMLElement {
         @media(max-width:1100px){.hero-flow-overlay{display:none}.hero-flow-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:620px){.hero-flow-metrics{grid-template-columns:1fr 1fr}}
         @media(prefers-reduced-motion:reduce){.hero-energy-edge .hero-power-travel{animation:none}}
+        .editor-entity-group{border:1px solid #38536c;border-radius:12px;margin:8px 0;background:#10253a;overflow:hidden}
+        .editor-entity-group>summary{padding:12px 14px;cursor:pointer;color:#e4f3ff;font-weight:700}
+        .editor-entity-group>summary small{color:#9ab4cb;font-weight:400}
+        .editor-entity-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;padding:10px 12px 16px}
+        .editor-entity-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+        .editor-entity-field strong{font-size:13px}
+        .editor-entity-field small{font-size:10px;color:#a5bfd2;overflow-wrap:anywhere}
+        .editor-entity-field input{width:100%;min-width:0;border:1px solid #52718a;border-radius:9px;padding:10px;background:#071c2d;color:#e9f3fa;font:inherit}
         .mid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;margin-top:14px}
         .panel{border:1px solid #294862;border-radius:20px;padding:14px 16px;background:linear-gradient(180deg,rgba(9,22,34,.95),rgba(10,18,27,.95));box-shadow:0 0 30px rgba(0,0,0,.18)}
         .panel h2{display:flex;align-items:center;gap:10px;font-size:22px;margin:0 0 12px}.panel h2 ha-icon{--mdc-icon-size:28px}
