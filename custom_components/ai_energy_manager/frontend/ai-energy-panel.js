@@ -614,22 +614,29 @@ class AIEnergyPanel extends HTMLElement {
   // electrical source/storage is discharging/charging behind the meter.
   // PV->HP is estimated by proportional allocation, not physically metered.
   calculateLiveFlow(pv, grid, hp, exportPositive=false, batteryPower=null) {
-    if([pv,grid,hp].some(v=>v===null||!Number.isFinite(v))){
-      return {valid:false,reason:"Mangler effektmåling eller korrekt måleenhed (W/kW)"};
+    const meterOk=grid!==null && Number.isFinite(grid);
+    const solarOk=pv!==null && Number.isFinite(pv) && pv>=0;
+    const hpOk=hp!==null && Number.isFinite(hp) && hp>=0;
+    const signedGrid=meterOk?(exportPositive?-grid:grid):null;
+    const importW=meterOk?Math.max(0,signedGrid):null;
+    const exportW=meterOk?Math.max(0,-signedGrid):null;
+    // Measured import/export remains visible when the allocation is unknown.
+    const base={valid:meterOk,importW,exportW,pvW:solarOk?pv:null,
+      hpW:hpOk?hp:null,homeW:null,otherW:null,
+      pvHpW:null,gridHpW:null,pvOtherW:null,gridOtherW:null,
+      estimated:true};
+    if(!meterOk){
+      return {...base,reason:"P1-måleren mangler gyldig effekt i W eller kW"};
     }
-    if(pv<0 || hp<0){
-      return {valid:false,reason:"PV eller IVT angiver negativ effekt – kontrollér sensorvalg"};
+    if(!solarOk || !hpOk){
+      return {...base,limited:true,reason:"P1-import/eksport vises. Sol- eller IVT-sensor mangler gyldig effekt i W/kW."};
     }
-    if(batteryPower!==null && Number.isFinite(batteryPower) && Math.abs(batteryPower)>50){
-      return {valid:false,reason:"Batteriet udveksler strøm – fordelingen kan ikke beregnes sikkert uden verificeret batterifortegn"};
+    if(batteryPower!==null && (!Number.isFinite(batteryPower) || Math.abs(batteryPower)>50)){
+      return {...base,limited:true,reason:"Import/eksport måles. Fordeling til IVT er ukendt ved aktiv eller utilgængelig batterisensor."};
     }
-    const signedGrid=exportPositive?-grid:grid; // positive import, negative export
-    const importW=Math.max(0,signedGrid);
-    const exportW=Math.max(0,-signedGrid);
     const loadW=pv+signedGrid;
     if(loadW < -50 || hp>loadW+100){
-      return {valid:false,reason:"P1, solproduktion og IVT-forbrug stemmer ikke – kontrollér fortegn og sensorer",
-        importW,exportW,pvW:pv,hpW:hp};
+      return {...base,limited:true,reason:"Nettoeffekt, PV og IVT stemmer ikke. Kontrollér P1-fortegn, inverter og måleenheder."};
     }
     const total=Math.max(0,loadW);
     const compressor=Math.min(hp,total);
@@ -637,22 +644,19 @@ class AIEnergyPanel extends HTMLElement {
     const share=total>0?compressor/total:0;
     const pvHp=pvUsed*share;
     const gridHp=compressor-pvHp;
-    const otherPv=pvUsed-pvHp;
-    const otherGrid=importW-gridHp;
-    return {
-      valid:true, pvW:pv, hpW:hp, importW, exportW,
-      homeW:total,otherW:Math.max(0,total-compressor),
+    return {...base,
+      homeW:total, otherW:Math.max(0,total-compressor),
       pvHpW:pvHp,gridHpW:Math.max(0,gridHp),
-      pvOtherW:Math.max(0,otherPv),gridOtherW:Math.max(0,otherGrid),
-      estimated:true,
-      disclaimer:"Beregnet proportional fordeling – ikke målt strøm fra en bestemt kilde til IVT. Forudsætter ingen aktiv batteriudveksling."
+      pvOtherW:Math.max(0,pvUsed-pvHp),
+      gridOtherW:Math.max(0,importW-gridHp),
+      disclaimer:"Beregnet proportional fordeling – ikke målt direkte fra solceller eller elnet til IVT. Forudsætter ingen aktiv batteriudveksling."
     };
   }
 
   flowDiagramHtml(flow) {
     const format=n=>this.fmt(Math.max(0,n)/1000,2)+" kW";
-    const value=n=>flow.valid?format(n):"—";
-    const active=(n)=>flow.valid && n>=50;
+    const value=n=>flow.valid && Number.isFinite(n)?format(n):"—";
+    const active=(n)=>flow.valid && Number.isFinite(n) && n>=50;
     const edge=(path,amount,color,reverse=false,title="")=>{
       const show=active(amount);
       return '<g class="power-edge '+(show?'active':'inactive')+'" aria-label="'+this.esc(title)+'">'+
@@ -695,7 +699,7 @@ class AIEnergyPanel extends HTMLElement {
       '<div><span>Estimeret sol → IVT</span><strong class="power-yellow">'+this.esc(value(flow.pvHpW))+'</strong></div>'+
       '<div><span>Estimeret net → IVT</span><strong class="power-blue">'+this.esc(value(flow.gridHpW))+'</strong></div>'+
       '<div><span>Øvrigt husforbrug</span><strong>'+this.esc(value(flow.otherW))+'</strong></div></div>'+
-      (!flow.valid?'<p class="power-warning"><ha-icon icon="mdi:alert-circle-outline"></ha-icon>'+this.esc(flow.reason)+'</p>':
+      (!flow.valid || flow.limited?'<p class="power-warning"><ha-icon icon="mdi:alert-circle-outline"></ha-icon>'+this.esc(flow.reason)+'</p>':
        '<p class="power-disclaimer">'+this.esc(flow.disclaimer)+'</p>')+
       '</section>';
   }
@@ -800,9 +804,9 @@ class AIEnergyPanel extends HTMLElement {
     const batteryEntry=Object.values(this._hass?.states||{}).find(x=>
       x.entity_id?.startsWith("sensor.ai_energy_manager_")&&
       x.attributes?.friendly_name==="AI Energy Manager Batterieffekt");
-    const batteryRaw= batteryEntry && !["unknown","unavailable"].includes(batteryEntry.state)?
-      Number(batteryEntry.state):null;
-    const batteryPower=Number.isFinite(batteryRaw)?batteryRaw:null;
+    const batteryRaw= batteryEntry && !["unknown","unavailable","none"].includes(String(batteryEntry.state))?
+      Number(batteryEntry.state):NaN;
+    const batteryPower=batteryEntry?batteryRaw:null;
     const flowValues=this.calculateLiveFlow(
       demo?4250:this.flowPower(this.getKpiSensor("solar","sensor.danfoss_tlx_pro_241202n272_grid_power_total")),
       demo?-600:this.flowPower(this.getKpiSensor("grid","sensor.p1_meter_power")),
