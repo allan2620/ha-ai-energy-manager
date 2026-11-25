@@ -24,6 +24,7 @@ class AIEnergyPanel extends HTMLElement {
     this._deferredRenderTimer = null;
     this._modePending = null;
     this._boundDomEvents = new WeakMap();
+    this._lastLiveRenderAt = 0;
     this.shadowRoot.addEventListener("focusout", () => {
       // A native select needs to stay mounted until the user has finished.
       if (!this._deferredRenderTimer) {
@@ -126,8 +127,17 @@ class AIEnergyPanel extends HTMLElement {
     if (!this._renderQueued) {
       this._renderQueued = true;
       requestAnimationFrame(() => {
-        this._renderQueued = false;
-        this.render();
+        const delay=Math.max(0, 750-(Date.now()-this._lastLiveRenderAt));
+        setTimeout(()=>{
+          this._renderQueued=false;
+          if(!this.editMode){
+            const focused=this.shadowRoot.activeElement;
+            if(!(focused && ["SELECT","INPUT","TEXTAREA"].includes(focused.tagName))){
+              this._lastLiveRenderAt=Date.now();
+              this.render();
+            }
+          }
+        },delay);
       });
     }
   }
@@ -436,12 +446,12 @@ class AIEnergyPanel extends HTMLElement {
     if(!this.editMode)return;
     const q=x=>this.shadowRoot.querySelector(x);
     const close=()=>{this.editMode=false;this.editorError="";this.loadLayout();this.render();};
-    q("#editor-close")?.addEventListener("click",close);
-    q("#editor-cancel")?.addEventListener("click",close);
-    q("#editor-overlay")?.addEventListener("click",e=>{if(e.target.id==="editor-overlay")close();});
-    q("#editor-title")?.addEventListener("change",e=>{this.layout.title=e.target.value;});
-    q("#editor-accent")?.addEventListener("change",e=>{this.layout.accent=e.target.value;});
-    this.shadowRoot.querySelectorAll("[data-label]").forEach(el=>el.addEventListener("change",()=>{
+    this.listenOnce(q("#editor-close"),"editor-close","click",close);
+    this.listenOnce(q("#editor-cancel"),"editor-cancel","click",close);
+    this.listenOnce(q("#editor-overlay"),"editor-overlay","click",e=>{if(e.target.id==="editor-overlay")close();});
+    this.listenOnce(q("#editor-title"),"editor-title","change",e=>{this.layout.title=e.target.value;});
+    this.listenOnce(q("#editor-accent"),"editor-accent","change",e=>{this.layout.accent=e.target.value;});
+    this.shadowRoot.querySelectorAll("[data-label]").forEach(el=>this.listenOnce(el,"editor-change","change",()=>{
       this.layout.labels[el.dataset.label]=el.value.trim().slice(0,32);
     }));
     this.shadowRoot.querySelectorAll("[data-visible]").forEach(el=>el.addEventListener("change",()=>{
@@ -454,14 +464,14 @@ class AIEnergyPanel extends HTMLElement {
       if(el.value)this.layout.sensors[id]=el.value;
       else delete this.layout.sensors[id];
     }));
-    this.shadowRoot.querySelectorAll("[data-move]").forEach(el=>el.addEventListener("click",()=>{
+    this.shadowRoot.querySelectorAll("[data-move]").forEach(el=>this.listenOnce(el,"editor-move","click",()=>{
       const arr=this.layout.groups[el.dataset.group],i=arr.indexOf(el.dataset.move),j=i+Number(el.dataset.direction);
       if(i<0||j<0||j>=arr.length)return;
       [arr[i],arr[j]]=[arr[j],arr[i]];
       this.render();
     }));
-    q("#editor-reset")?.addEventListener("click",()=>{this.layout=this.defaultLayout();this.editorError="";this.render();});
-    q("#editor-save")?.addEventListener("click",async()=>{
+    this.listenOnce(q("#editor-reset"),"editor-reset","click",()=>{this.layout=this.defaultLayout();this.editorError="";this.render();});
+    this.listenOnce(q("#editor-save"),"editor-save","click",async()=>{
       this.layout.title=q("#editor-title")?.value?.trim()||"AI Energy Manager";
       this.layout.accent=q("#editor-accent")?.value||"nordic";
       this.layoutSaving=true;this.editorError="";this.render();
