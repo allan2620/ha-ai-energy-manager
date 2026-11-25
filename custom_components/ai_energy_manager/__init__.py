@@ -31,7 +31,7 @@ async def _setup_panel(hass):
         hass, webcomponent_name="ai-energy-panel",
         frontend_url_path=PANEL_ROUTE,
         sidebar_title="AI Energy", sidebar_icon="mdi:brain",
-        module_url=f"{ASSET_URL}/ai-energy-panel.js?v=2.2.1",
+        module_url=f"{ASSET_URL}/ai-energy-panel.js?v=2.3.0",
         embed_iframe=False, require_admin=False,
     )
     hass.data[PANEL_KEY] = True
