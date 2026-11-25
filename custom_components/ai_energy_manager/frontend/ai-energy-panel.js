@@ -350,7 +350,8 @@ class AIEnergyPanel extends HTMLElement {
       const st=this.st(id);
       const label=st?.attributes?.friendly_name||id.split(".")[1].replaceAll("_"," ");
       const val=st?st.state+" "+(st.attributes?.unit_of_measurement||""):"Sensor mangler";
-      return '<div class="detail-line"><div><b>'+this.esc(label)+'</b><small>'+this.esc(id)+'</small></div><div class="detail-actions"><strong>'+this.esc(val)+'</strong>'+(st?'<button data-moreinfo="'+this.esc(id)+'">Vis graf og data</button>':'')+'</div></div>';
+      const activeId=this.displayEntity(id);
+      return '<div class="detail-line"><div><b>'+this.esc(label)+'</b><small>'+this.esc(activeId)+'</small></div><div class="detail-actions"><strong>'+this.esc(val)+'</strong>'+(st?'<button data-moreinfo="'+this.esc(activeId)+'">Vis graf og data</button>':'')+'</div></div>';
     }).join("");
     const diagnostic=this.selectedDetail==="ai"?
       '<div class="detail-line"><b>Status</b>'+this.esc(status?.state||"Afventer")+'</div>'+
@@ -446,7 +447,10 @@ class AIEnergyPanel extends HTMLElement {
     if(!this.editMode)this.render();
   }
   getLayout(){return this.layout||this.defaultLayout();}
-  getKpiSensor(key,fallback){return this.getLayout().sensors?.[key]||this.displayEntity(fallback);}
+  getKpiSensor(key,fallback){
+    // Per-sensor choice wins over the legacy six top-card overrides.
+    return this.getLayout().sensors?.[fallback]||this.getLayout().sensors?.[key]||fallback;
+  }
   editorSensorGroups() {
     // Every dashboard source has its own key; defaults remain untouched.
     // Existing six KPI overrides remain available for backward compatibility.
