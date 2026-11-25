@@ -23,6 +23,7 @@ class AIEnergyPanel extends HTMLElement {
     this._scrollInteractionUntil = 0;
     this._deferredRenderTimer = null;
     this._modePending = null;
+    this._boundDomEvents = new WeakMap();
     this.shadowRoot.addEventListener("focusout", () => {
       // A native select needs to stay mounted until the user has finished.
       if (!this._deferredRenderTimer) {
@@ -32,6 +33,71 @@ class AIEnergyPanel extends HTMLElement {
         }, 200);
       }
     });
+  }
+
+  // Patch only changed DOM nodes. Unchanged cards, icon animations, focus and
+  // graph/scroll nodes retain their identity across Home Assistant state updates.
+  patchDom(html) {
+    const template=document.createElement("template");
+    template.innerHTML=html;
+    const patchNode=(oldNode,newNode)=>{
+      if(oldNode.nodeType!==newNode.nodeType ||
+         (oldNode.nodeType===Node.ELEMENT_NODE && oldNode.tagName!==newNode.tagName)){
+        oldNode.replaceWith(newNode.cloneNode(true));
+        return;
+      }
+      if(oldNode.nodeType===Node.TEXT_NODE){
+        if(oldNode.nodeValue!==newNode.nodeValue)oldNode.nodeValue=newNode.nodeValue;
+        return;
+      }
+      if(oldNode.nodeType!==Node.ELEMENT_NODE)return;
+      const focused=oldNode===this.shadowRoot.activeElement;
+      const isInput=["INPUT","TEXTAREA","SELECT"].includes(oldNode.tagName);
+      // Avoid modifying native controls during selection/typing.
+      if(focused && isInput)return;
+      for(const attr of Array.from(oldNode.attributes)){
+        if(!newNode.hasAttribute(attr.name))oldNode.removeAttribute(attr.name);
+      }
+      for(const attr of Array.from(newNode.attributes)){
+        if(oldNode.getAttribute(attr.name)!==attr.value)oldNode.setAttribute(attr.name,attr.value);
+      }
+      if(isInput){
+        if(oldNode.tagName==="SELECT"){
+          if(oldNode.value!==newNode.value)oldNode.value=newNode.value;
+        }else if(oldNode.value!==newNode.value){
+          oldNode.value=newNode.value;
+        }
+      }
+      const oldChildren=oldNode.childNodes;
+      const newChildren=newNode.childNodes;
+      for(let i=0;i<newChildren.length;i++){
+        const fresh=newChildren[i];
+        if(i>=oldChildren.length){
+          oldNode.appendChild(fresh.cloneNode(true));
+        }else{
+          patchNode(oldChildren[i],fresh);
+        }
+      }
+      while(oldNode.childNodes.length>newChildren.length){
+        oldNode.lastChild.remove();
+      }
+    };
+    const current=this.shadowRoot.childNodes;
+    const incoming=template.content.childNodes;
+    for(let i=0;i<incoming.length;i++){
+      if(i>=current.length) this.shadowRoot.appendChild(incoming[i].cloneNode(true));
+      else patchNode(current[i],incoming[i]);
+    }
+    while(this.shadowRoot.childNodes.length>incoming.length) this.shadowRoot.lastChild.remove();
+  }
+
+  listenOnce(el,key,event,handler){
+    if(!el)return;
+    let seen=this._boundDomEvents.get(el);
+    if(!seen){seen=new Set();this._boundDomEvents.set(el,seen);}
+    if(seen.has(key))return;
+    seen.add(key);
+    el.addEventListener(event,handler);
   }
 
   set hass(v) {
@@ -623,7 +689,7 @@ class AIEnergyPanel extends HTMLElement {
     const pvKw = pv === null ? '—' : `${this.fmt(pv / 1000)} kW`;
     const hpKw = hpPower === null ? '—' : `${this.fmt(hpPower / 1000)} kW`;
 
-    this.shadowRoot.innerHTML = `
+    const nextHtml = `
       <style>
         :host{display:block;min-height:100vh;background:#07111d;color:#e7eef9;font:14px/1.45 Roboto,Arial,sans-serif}
         *{box-sizing:border-box}
@@ -876,7 +942,7 @@ class AIEnergyPanel extends HTMLElement {
           <div class="footer">${demo ? 'Simuleret dashboard – eksempeldata' : faults.length ? 'Live dashboard – nogle sensorer mangler' : 'Live dashboard – aktuelle data'}</div>
         </main>
       </div>`;
-
+    this.patchDom(nextHtml);
 
     const selectors=[
       [".topbar .stat",["solar","grid","hp","nilan","price","weather"]],
@@ -894,20 +960,20 @@ class AIEnergyPanel extends HTMLElement {
     if(decision){decision.dataset.detail="ai";decision.classList.add("click-more");decision.tabIndex=0;decision.setAttribute("role","button");}
     const detail=(key)=>{if(this.detailGroups()[key]){this.selectedDetail=key;this.graphEntity=null;this.render();}};
     this.shadowRoot.querySelectorAll("[data-detail]").forEach(el=>{
-      el.addEventListener("click",()=>detail(el.dataset.detail));
-      el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();detail(el.dataset.detail);}});
+      this.listenOnce(el,"detail-click","click",()=>detail(el.dataset.detail));
+      this.listenOnce(el,"detail-key","keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();detail(el.dataset.detail);}});
     });
-    this.shadowRoot.querySelector("#modal-close")?.addEventListener("click",()=>{this.selectedDetail=null;this.graphEntity=null;this.render();});
-    this.shadowRoot.querySelector("#modal-backdrop")?.addEventListener("click",e=>{if(e.target.id==="modal-backdrop"){this.selectedDetail=null;this.render();}});
-    this.shadowRoot.querySelectorAll("[data-moreinfo]").forEach(btn=>btn.addEventListener("click",()=>this.showMoreInfo(btn.dataset.moreinfo)));
-    this.shadowRoot.querySelector("#graph-back")?.addEventListener("click",()=>{this.graphEntity=null;this.graphHistory=[];this.render();});
-    this.shadowRoot.querySelectorAll("[data-graph-hours]").forEach(btn=>btn.addEventListener("click",()=>this.showMoreInfo(this.graphEntity,Number(btn.dataset.graphHours))));
+    this.listenOnce(this.shadowRoot.querySelector("#modal-close"),"modal-close","click",()=>{this.selectedDetail=null;this.graphEntity=null;this.render();});
+    this.listenOnce(this.shadowRoot.querySelector("#modal-backdrop"),"modal-backdrop","click",e=>{if(e.target.id==="modal-backdrop"){this.selectedDetail=null;this.render();}});
+    this.shadowRoot.querySelectorAll("[data-moreinfo]").forEach(btn=>this.listenOnce(btn,"moreinfo","click",()=>this.showMoreInfo(btn.dataset.moreinfo)));
+    this.listenOnce(this.shadowRoot.querySelector("#graph-back"),"graph-back","click",()=>{this.graphEntity=null;this.graphHistory=[];this.render();});
+    this.shadowRoot.querySelectorAll("[data-graph-hours]").forEach(btn=>this.listenOnce(btn,"graph-hours","click",()=>this.showMoreInfo(this.graphEntity,Number(btn.dataset.graphHours))));
 
     const rail=this.shadowRoot.querySelector(".plan-scroll");
     if(rail) {
       rail.scrollLeft=previous.planX;
       rail.scrollTop=previous.planY;
-      rail.addEventListener("scroll",()=>{
+      this.listenOnce(rail,"rail-scroll","scroll",()=>{
         this._scrollInteractionUntil=Date.now()+1800;
       },{passive:true});
     }
@@ -917,13 +983,13 @@ class AIEnergyPanel extends HTMLElement {
     this.scrollLeft=previous.pageX;
     this.applyLayout();
     this.bindEditor();
-    this.shadowRoot.getElementById("edit-dashboard")?.addEventListener("click",()=>{
+    this.listenOnce(this.shadowRoot.getElementById("edit-dashboard"),"edit-dashboard","click",()=>{
       this.editMode=true;
       this.layout=JSON.parse(JSON.stringify(this.getLayout()));
       this.editorError="";
       this.render();
     });
-    this.shadowRoot.querySelector("#resume-manual")?.addEventListener("click",async()=>{
+    this.listenOnce(this.shadowRoot.querySelector("#resume-manual"),"resume-manual","click",async()=>{
       if(this.demo)return;
       const entity=Object.values(this._hass.states||{}).find(x=>x.entity_id.startsWith("button.ai_energy_manager_")&&
         x.attributes?.friendly_name==="AI Energy Manager Ophæv manuel varmepause");
@@ -931,7 +997,7 @@ class AIEnergyPanel extends HTMLElement {
       try{await this._hass.callService("button","press",{entity_id:entity.entity_id});}
       catch(err){this.editorError=String(err?.message||err);}
     });
-    this.shadowRoot.querySelector("#energy-mode")?.addEventListener("change",async(e)=>{
+    this.listenOnce(this.shadowRoot.querySelector("#energy-mode"),"energy-mode","change",async(e)=>{
       if(this.demo)return;
       const value=e.target.value;
       this._modePending=value;
@@ -941,11 +1007,11 @@ class AIEnergyPanel extends HTMLElement {
         await this._hass.callService("select","select_option",{entity_id:entity.entity_id,option:value});
       }catch(err){this._modePending=null;this.editorError=String(err?.message||err);this.render();}
     });
-    this.shadowRoot.getElementById("simulate-btn")?.addEventListener("click", () => {
+    this.listenOnce(this.shadowRoot.getElementById("simulate-btn"),"simulate-btn","click", () => {
       this.demo = !this.demo;
       this.render();
     });
-    this.shadowRoot.getElementById("menu-btn")?.addEventListener("click", () => {
+    this.listenOnce(this.shadowRoot.getElementById("menu-btn"),"menu-btn","click", () => {
       this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
     });
   }
